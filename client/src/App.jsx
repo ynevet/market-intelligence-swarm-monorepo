@@ -252,6 +252,8 @@ export default function AIResearchApp() {
                     <ul className="text-sm text-gray-600 space-y-1">
                         <li>• Map stripe.com and extract pricing tiers</li>
                         <li>• Analyze hubspot.com product features</li>
+                        <li>• Benchmark Cursor AI vs GitHub Copilot for enterprise teams</li>
+                        <li>• Compare Spotify’s pricing and feature bundles against Apple Music</li>
                     </ul>
                 </div>
             </div>
