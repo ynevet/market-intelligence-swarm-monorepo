@@ -1,0 +1,19 @@
+# Python
+server/.venv/
+__pycache__/
+*.pyc
+
+# Node/Vite
+client/node_modules/
+client/dist/
+npm-debug.log
+
+# Environment files
+.env
+*.env
+server/.env
+client/.env
+
+# Docker artifacts
+*.log
+
