@@ -1,7 +1,11 @@
-import os
 import datetime
+import logging
+import os
+
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
+
+logger = logging.getLogger("market_intel.database")
 
 class MongoHandler:
     def __init__(self):
@@ -17,11 +21,11 @@ class MongoHandler:
                 self.db = self.client.get_database("market_swarm_db")
                 self.logs = self.db.get_collection("agent_logs")
                 self.reports = self.db.get_collection("final_reports")
-                print("--- Connected to MongoDB Atlas ---")
+                logger.info("Connected to MongoDB Atlas")
             except ConnectionFailure as e:
-                print(f"--- MongoDB Connection Failed: {e} ---")
+                logger.exception("MongoDB connection failed: %s", e)
         else:
-            print("--- WARNING: MONGO_URI not found. Database logging is disabled. ---")
+            logger.warning("MONGO_URI not found. Database logging is disabled.")
 
     def log_query(self, session_id: str, query: str):
         """Logs the initial user query."""

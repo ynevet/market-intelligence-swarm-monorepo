@@ -1,9 +1,10 @@
 flask
 langgraph
+langchain
 langchain-openai
 tavily-python
 pymongo
 dnspython
 flask-cors
-dotenv
+python-dotenv
 gunicorn

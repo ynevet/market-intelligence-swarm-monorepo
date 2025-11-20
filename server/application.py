@@ -1,13 +1,49 @@
-from dotenv import load_dotenv
-load_dotenv()
+import json
+import logging
+import os
+import uuid
 
+from dotenv import load_dotenv
 from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from langchain_core.messages import HumanMessage
+
 from agents import market_graph
-import uuid
 from database import db_handler
-import json
+
+load_dotenv()
+
+log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, log_level, logging.INFO),
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
+logger = logging.getLogger("market_intel.application")
+
+MARKET_KEYWORDS = [
+    "market",
+    "competitor",
+    "competitive",
+    "pricing",
+    "go-to-market",
+    "gtm",
+    "analysis",
+    "research",
+    "benchmark",
+    "positioning",
+    "product comparison",
+    "sales strategy",
+]
+OUT_OF_SCOPE_MESSAGE = (
+    "Thanks for your request! This assistant focuses on market and competitive "
+    "research tasks (pricing, positioning, competitor insights, etc.). "
+    "Please submit a market intelligence query so I can help."
+)
+
+
+def is_market_intel_query(query: str) -> bool:
+    normalized = query.lower()
+    return any(keyword in normalized for keyword in MARKET_KEYWORDS)
 
 # Initialize Flask as 'application' for AWS EB
 application = Flask(__name__)
@@ -32,6 +68,10 @@ def run_research():
     if not query:
         return jsonify({"error": "No query provided"}), 400
 
+    if not is_market_intel_query(query):
+        logger.info("Rejected non-market query: %s", query)
+        return jsonify({"error": OUT_OF_SCOPE_MESSAGE}), 422
+
     db_handler.log_query(session_id, query)
 
     initial_state = {
@@ -39,7 +79,7 @@ def run_research():
         "session_id": session_id
     }
 
-    print(f"--- Starting Job {session_id}: {query} ---")
+    logger.info("Starting job %s :: %s", session_id, query)
 
     final_response = ""
 
@@ -56,6 +96,7 @@ def run_research():
         })
 
     except Exception as e:
+        logger.exception("Non-streaming research failed")
         return jsonify({"error": str(e)}), 500
 
 
@@ -71,9 +112,13 @@ def run_research_stream():
     if not query:
         return jsonify({"error": "No query provided"}), 400
 
+    if not is_market_intel_query(query):
+        logger.info("Rejected non-market query: %s", query)
+        return jsonify({"error": OUT_OF_SCOPE_MESSAGE}), 422
+
     db_handler.log_query(session_id, query)
 
-    print(f"--- Starting Streaming Job {session_id}: {query} ---")
+    logger.info("Starting streaming job %s :: %s", session_id, query)
 
     initial_state = {
         "messages": [HumanMessage(content=query)],
@@ -123,7 +168,7 @@ def run_research_stream():
                 })
 
         except Exception as e:
-            # Send error over the stream
+            logger.exception("Streaming research failed for %s", session_id)
             yield sse_format({
                 "type": "error",
                 "session_id": session_id,

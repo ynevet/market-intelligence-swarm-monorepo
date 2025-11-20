@@ -1,8 +1,27 @@
-import os
 import operator
 from typing import Annotated, List, TypedDict, Literal
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import BaseMessage, HumanMessage
+
+try:
+    from langchain.agents import create_agent as _create_agent  # type: ignore[attr-defined]
+
+    def build_agent(llm, tools, prompt):
+        return _create_agent(
+            llm,
+            tools=tools,
+            system_prompt=prompt,
+        )
+
+except ImportError:  # pragma: no cover - compatibility shim
+    from langgraph.prebuilt import create_react_agent as _create_agent
+
+    def build_agent(llm, tools, prompt):
+        return _create_agent(
+            llm,
+            tools,
+            prompt=prompt,
+        )
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.graph import StateGraph, END, START
 from langgraph.prebuilt import create_react_agent
@@ -28,17 +47,17 @@ class AgentState(TypedDict):
 
 # --- Worker Agents ---
 # 1. The Scout: Maps site structure
-scout_agent = create_react_agent(
-    llm_fast, 
+scout_agent = build_agent(
+    llm_fast,
     [tavily_search_research, tavily_map_site, tavily_crawl_summary],
-    prompt="You are a Recon Scout. Use Tavily search, map, and crawl tools to chart the research surface area."
+    "You are a Recon Scout. Use Tavily search, map, and crawl tools to chart the research surface area."
 )
 
 # 2. The Analyst: Extracts deep data
-analyst_agent = create_react_agent(
+analyst_agent = build_agent(
     llm_fast,
     [tavily_extract_content],
-    prompt="You are a Data Analyst. Extract raw content from specific URLs provided by the Scout to answer specific questions."
+    "You are a Data Analyst. Extract raw content from specific URLs provided by the Scout to answer specific questions."
 )
 
 # --- Node Wrappers (with DB Logging) ---

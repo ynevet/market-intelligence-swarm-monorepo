@@ -1,9 +1,12 @@
+import logging
 import os
+
 from langchain_core.tools import tool
 from tavily import TavilyClient
 
 # Initialize Tavily Client directly for advanced endpoints
 tavily_client = TavilyClient(api_key=os.environ.get("TAVILY_API_KEY"))
+logger = logging.getLogger("market_intel.tools")
 
 @tool
 def tavily_search_research(query: str) -> str:
@@ -12,7 +15,7 @@ def tavily_search_research(query: str) -> str:
     Returns a ranked list of URLs plus the synthesized answer.
     """
     try:
-        print(f"--- [Tool] Searching for {query} ---")
+        logger.info("[Tool] Searching for %s", query)
         response = tavily_client.search(
             query=query,
             search_depth="advanced",
@@ -36,7 +39,7 @@ def tavily_map_site(url: str) -> str:
     Uses Tavily's map endpoint to enumerate a domain's structure and key paths.
     """
     try:
-        print(f"--- [Tool] Mapping {url} ---")
+        logger.info("[Tool] Mapping %s", url)
         response = tavily_client.map(
             url=url,
             max_depth=2,
@@ -64,7 +67,7 @@ def tavily_crawl_summary(url: str) -> str:
     Useful for understanding what a page is about before extracting details.
     """
     try:
-        print(f"--- [Tool] Crawling {url} ---")
+        logger.info("[Tool] Crawling %s", url)
         response = tavily_client.crawl(
             url=url,
             extract_depth="advanced",
@@ -92,7 +95,7 @@ def tavily_extract_content(urls: str) -> str:
     """
     try:
         url_list = [u.strip() for u in urls.split(",")]
-        print(f"--- [Tool] Extracting from {len(url_list)} URLs ---")
+        logger.info("[Tool] Extracting from %d URLs", len(url_list))
         response = tavily_client.extract(urls=url_list)
 
         extracted_data = []
