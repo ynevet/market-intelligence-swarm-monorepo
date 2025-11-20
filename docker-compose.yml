@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+  server:
+    build:
+      context: ./server
+    command: ["python", "application.py"]
+    ports:
+      - "5000:5000"
+    environment:
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      MONGO_URI: ${MONGO_URI:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./client
+      target: development
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_SERVER_URL: ${VITE_SERVER_URL:-http://localhost:5000}
+    depends_on:
+      - server
+    restart: unless-stopped
+
