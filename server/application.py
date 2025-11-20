@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from langchain_core.messages import HumanMessage
+from openai import OpenAI
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from agents import market_graph
 from database import db_handler
@@ -19,6 +21,12 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
 logger = logging.getLogger("market_intel.application")
+MAX_QUERY_CHARS = 800
+POLICY_VIOLATION_MESSAGE = (
+    "This request can't be processed because it violates our usage guidelines. "
+    "Try rephrasing with a professional market or competitive research question."
+)
+moderation_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY")) if os.environ.get("OPENAI_API_KEY") else None
 
 MARKET_KEYWORDS = [
     "market",
@@ -45,6 +53,19 @@ def is_market_intel_query(query: str) -> bool:
     normalized = query.lower()
     return any(keyword in normalized for keyword in MARKET_KEYWORDS)
 
+
+class ResearchRequest(BaseModel):
+    query: str = Field(..., min_length=5, max_length=MAX_QUERY_CHARS)
+    session_id: str | None = None
+
+    @field_validator("query")
+    @classmethod
+    def normalize_query(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Query cannot be empty")
+        return cleaned
+
 # Initialize Flask as 'application' for AWS EB
 application = Flask(__name__)
 CORS(application)
@@ -61,16 +82,18 @@ def run_research():
     Old behavior: blocking request that returns only the final result.
     Keep this for non streaming clients.
     """
-    data = request.json
-    query = data.get('query')
-    session_id = data.get('session_id', str(uuid.uuid4()))
-    
-    if not query:
-        return jsonify({"error": "No query provided"}), 400
+    payload_raw = request.get_json(silent=True) or {}
+    try:
+        payload = ResearchRequest(**payload_raw)
+    except ValidationError as exc:
+        return jsonify({"error": "Invalid request body", "details": exc.errors()}), 400
 
-    if not is_market_intel_query(query):
-        logger.info("Rejected non-market query: %s", query)
-        return jsonify({"error": OUT_OF_SCOPE_MESSAGE}), 422
+    query = payload.query
+    session_id = payload.session_id or str(uuid.uuid4())
+
+    guard_response = enforce_query_guards(query)
+    if guard_response:
+        return guard_response
 
     db_handler.log_query(session_id, query)
 
@@ -106,15 +129,18 @@ def run_research_stream():
     New behavior: streaming endpoint using Server Sent Events (SSE).
     The frontend will receive events as your LangGraph agents work.
     """
-    query = request.args.get('query')
+    query = (request.args.get('query') or "").strip()
     session_id = request.args.get('session_id', str(uuid.uuid4()))
 
     if not query:
         return jsonify({"error": "No query provided"}), 400
 
-    if not is_market_intel_query(query):
-        logger.info("Rejected non-market query: %s", query)
-        return jsonify({"error": OUT_OF_SCOPE_MESSAGE}), 422
+    if len(query) > MAX_QUERY_CHARS:
+        return jsonify({"error": f"Query must be under {MAX_QUERY_CHARS} characters"}), 400
+
+    guard_response = enforce_query_guards(query)
+    if guard_response:
+        return guard_response
 
     db_handler.log_query(session_id, query)
 
@@ -184,3 +210,32 @@ def run_research_stream():
 
 if __name__ == "__main__":
     application.run(host="0.0.0.0", debug=True, port=5000, threaded=True)
+
+
+def enforce_query_guards(query: str):
+    if not is_market_intel_query(query):
+        logger.info("Rejected non-market query: %s", query)
+        return jsonify({"error": OUT_OF_SCOPE_MESSAGE}), 422
+
+    if not passes_moderation(query):
+        logger.info("Rejected query via moderation")
+        return jsonify({"error": POLICY_VIOLATION_MESSAGE}), 422
+
+    return None
+
+
+def passes_moderation(query: str) -> bool:
+    if moderation_client is None:
+        return True
+    try:
+        response = moderation_client.moderations.create(
+            model="omni-moderation-latest",
+            input=query,
+        )
+        results = getattr(response, "results", [])
+        if not results:
+            return True
+        return not results[0].flagged
+    except Exception as exc:
+        logger.warning("Moderation check failed: %s", exc)
+        return True

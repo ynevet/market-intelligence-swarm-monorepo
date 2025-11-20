@@ -8,3 +8,5 @@ dnspython
 flask-cors
 python-dotenv
 gunicorn
+openai
+pydantic
