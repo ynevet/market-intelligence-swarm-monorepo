@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from langchain_core.messages import HumanMessage
+from langchain_openai import ChatOpenAI
 from openai import OpenAI
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -28,20 +29,9 @@ POLICY_VIOLATION_MESSAGE = (
 )
 moderation_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY")) if os.environ.get("OPENAI_API_KEY") else None
 
-MARKET_KEYWORDS = [
-    "market",
-    "competitor",
-    "competitive",
-    "pricing",
-    "go-to-market",
-    "gtm",
-    "analysis",
-    "research",
-    "benchmark",
-    "positioning",
-    "product comparison",
-    "sales strategy",
-]
+# LLM for checking if queries are market-intel related
+classifier_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0) if os.environ.get("OPENAI_API_KEY") else None
+
 OUT_OF_SCOPE_MESSAGE = (
     "Thanks for your request! This assistant focuses on market and competitive "
     "research tasks (pricing, positioning, competitor insights, etc.). "
@@ -49,9 +39,79 @@ OUT_OF_SCOPE_MESSAGE = (
 )
 
 
+class QueryClassification(BaseModel):
+    is_market_intel: bool = Field(description="True if query is about market research, competitive analysis, pricing, etc")
+    confidence: float = Field(description="Confidence 0-1", ge=0.0, le=1.0)
+    reason: str = Field(description="Why this classification")
+
+
 def is_market_intel_query(query: str) -> bool:
-    normalized = query.lower()
-    return any(keyword in normalized for keyword in MARKET_KEYWORDS)
+    """Check if query is market intel related using LLM"""
+    if classifier_llm is None:
+        return True  # skip check if no API key
+    
+    try:
+        prompt = f"""Classify whether this user query is about market intelligence, competitive research, or business analysis.
+
+Market intelligence queries include:
+- Competitive analysis and benchmarking
+- Pricing research and strategy
+- Market positioning and differentiation
+- Product comparisons
+- Go-to-market (GTM) research
+- Industry trends and insights
+- Sales strategy research
+- Market sizing and opportunity analysis
+
+Query: "{query}"
+
+Respond with whether this is a market intelligence query and your confidence level."""
+
+        result = classifier_llm.with_structured_output(QueryClassification).invoke(prompt)
+        is_valid = result.is_market_intel and result.confidence >= 0.7
+        logger.info("Query classification: valid=%s, conf=%.2f", is_valid, result.confidence)
+        return is_valid
+    except Exception as e:
+        logger.warning("Classification failed: %s", e)
+        return True  # allow through on error
+
+
+def validate_query_guards(query: str) -> str | None:
+    """Check query against guardrails, return error msg or None"""
+    if not is_market_intel_query(query):
+        logger.info("Rejected: %s", query[:50])
+        return OUT_OF_SCOPE_MESSAGE
+
+    if not passes_moderation(query):
+        logger.info("Rejected by moderation")
+        return POLICY_VIOLATION_MESSAGE
+
+    return None
+
+
+def enforce_query_guards(query: str):
+    """For non-streaming endpoints"""
+    error_msg = validate_query_guards(query)
+    if error_msg:
+        return jsonify({"error": error_msg}), 422
+    return None
+
+
+def passes_moderation(query: str) -> bool:
+    if moderation_client is None:
+        return True
+    try:
+        response = moderation_client.moderations.create(
+            model="omni-moderation-latest",
+            input=query,
+        )
+        results = getattr(response, "results", [])
+        if not results:
+            return True
+        return not results[0].flagged
+    except Exception as exc:
+        logger.warning("Moderation check failed: %s", exc)
+        return True
 
 
 class ResearchRequest(BaseModel):
@@ -78,10 +138,7 @@ def health_check():
 
 @application.route('/research', methods=['POST'])
 def run_research():
-    """
-    Old behavior: blocking request that returns only the final result.
-    Keep this for non streaming clients.
-    """
+    """Blocking endpoint for non-streaming clients"""
     payload_raw = request.get_json(silent=True) or {}
     try:
         payload = ResearchRequest(**payload_raw)
@@ -125,39 +182,50 @@ def run_research():
 
 @application.route('/research-stream', methods=['GET'])
 def run_research_stream():
-    """
-    New behavior: streaming endpoint using Server Sent Events (SSE).
-    The frontend will receive events as your LangGraph agents work.
-    """
+    """SSE streaming endpoint"""
     query = (request.args.get('query') or "").strip()
     session_id = request.args.get('session_id', str(uuid.uuid4()))
 
-    if not query:
-        return jsonify({"error": "No query provided"}), 400
-
-    if len(query) > MAX_QUERY_CHARS:
-        return jsonify({"error": f"Query must be under {MAX_QUERY_CHARS} characters"}), 400
-
-    guard_response = enforce_query_guards(query)
-    if guard_response:
-        return guard_response
-
-    db_handler.log_query(session_id, query)
-
-    logger.info("Starting streaming job %s :: %s", session_id, query)
-
-    initial_state = {
-        "messages": [HumanMessage(content=query)],
-        "session_id": session_id
-    }
-
     def sse_format(payload: dict) -> str:
-        # SSE protocol: "data: <json>\n\n"
         return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
     def event_stream():
+        # Validate basic query requirements
+        if not query:
+            yield sse_format({
+                "type": "error",
+                "session_id": session_id,
+                "message": "No query provided"
+            })
+            return
+
+        if len(query) > MAX_QUERY_CHARS:
+            yield sse_format({
+                "type": "error",
+                "session_id": session_id,
+                "message": f"Query must be under {MAX_QUERY_CHARS} characters"
+            })
+            return
+
+        # Validate guardrails and send error through SSE if rejected
+        guard_error = validate_query_guards(query)
+        if guard_error:
+            yield sse_format({
+                "type": "error",
+                "session_id": session_id,
+                "message": guard_error
+            })
+            return
+
+        db_handler.log_query(session_id, query)
+        logger.info("Starting job %s", session_id)
+
+        initial_state = {
+            "messages": [HumanMessage(content=query)],
+            "session_id": session_id
+        }
+
         try:
-            # Optional: let the client know we started
             yield sse_format({
                 "type": "status",
                 "session_id": session_id,
@@ -167,26 +235,20 @@ def run_research_stream():
             last_message = None
 
             for event in market_graph.stream(initial_state):
-                # event is something like {"node_name": {"messages": [...], ...}}
                 for node_name, state in event.items():
                     messages = state.get("messages", [])
                     if not messages:
                         continue
 
                     last_message = messages[-1]
-
-                    payload = {
+                    yield sse_format({
                         "type": "agent_message",
                         "session_id": session_id,
                         "node": node_name,
                         "message": last_message.content
-                    }
-
-                    # Send incremental update to the client
-                    yield sse_format(payload)
+                    })
 
             if last_message is not None:
-                # Send final message marker
                 yield sse_format({
                     "type": "final",
                     "session_id": session_id,
@@ -203,39 +265,9 @@ def run_research_stream():
 
     response = Response(stream_with_context(event_stream()), mimetype="text/event-stream")
     response.headers["Cache-Control"] = "no-cache"
-    # If you have nginx or a proxy that buffers, this can help
     response.headers["X-Accel-Buffering"] = "no"
     return response
 
 
 if __name__ == "__main__":
     application.run(host="0.0.0.0", debug=True, port=5000, threaded=True)
-
-
-def enforce_query_guards(query: str):
-    if not is_market_intel_query(query):
-        logger.info("Rejected non-market query: %s", query)
-        return jsonify({"error": OUT_OF_SCOPE_MESSAGE}), 422
-
-    if not passes_moderation(query):
-        logger.info("Rejected query via moderation")
-        return jsonify({"error": POLICY_VIOLATION_MESSAGE}), 422
-
-    return None
-
-
-def passes_moderation(query: str) -> bool:
-    if moderation_client is None:
-        return True
-    try:
-        response = moderation_client.moderations.create(
-            model="omni-moderation-latest",
-            input=query,
-        )
-        results = getattr(response, "results", [])
-        if not results:
-            return True
-        return not results[0].flagged
-    except Exception as exc:
-        logger.warning("Moderation check failed: %s", exc)
-        return True

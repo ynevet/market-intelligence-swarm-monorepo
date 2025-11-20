@@ -4,16 +4,12 @@ import os
 from langchain_core.tools import tool
 from tavily import TavilyClient
 
-# Initialize Tavily Client directly for advanced endpoints
 tavily_client = TavilyClient(api_key=os.environ.get("TAVILY_API_KEY"))
 logger = logging.getLogger("market_intel.tools")
 
 @tool
 def tavily_search_research(query: str) -> str:
-    """
-    Runs a broad Tavily search to collect competitive intel for the given query.
-    Returns a ranked list of URLs plus the synthesized answer.
-    """
+    """Search Tavily for competitive intel"""
     try:
         logger.info("[Tool] Searching for %s", query)
         response = tavily_client.search(
@@ -35,9 +31,7 @@ def tavily_search_research(query: str) -> str:
 
 @tool
 def tavily_map_site(url: str) -> str:
-    """
-    Uses Tavily's map endpoint to enumerate a domain's structure and key paths.
-    """
+    """Map a site's structure using Tavily"""
     try:
         logger.info("[Tool] Mapping %s", url)
         response = tavily_client.map(
@@ -62,10 +56,7 @@ def tavily_map_site(url: str) -> str:
 
 @tool
 def tavily_crawl_summary(url: str) -> str:
-    """
-    Crawls a specific URL to get a broad summary and context.
-    Useful for understanding what a page is about before extracting details.
-    """
+    """Crawl a URL to get summary and context"""
     try:
         logger.info("[Tool] Crawling %s", url)
         response = tavily_client.crawl(
@@ -89,10 +80,7 @@ def tavily_crawl_summary(url: str) -> str:
 
 @tool
 def tavily_extract_content(urls: str) -> str:
-    """
-    Extracts raw, clean text data from a comma-separated list of URLs.
-    Use this to get precise data like pricing tables or specs.
-    """
+    """Extract raw text from URLs (comma-separated)"""
     try:
         url_list = [u.strip() for u in urls.split(",")]
         logger.info("[Tool] Extracting from %d URLs", len(url_list))

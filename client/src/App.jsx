@@ -7,15 +7,13 @@ export default function AIResearchApp() {
   const [query, setQuery] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [finalReport, setFinalReport] = useState(null);
-  const [streamLogs, setStreamLogs] = useState([]); // Stores the "agent_message" events
+  const [streamLogs, setStreamLogs] = useState([]);
   const [error, setError] = useState(null);
   const [sessionId, setSessionId] = useState(null);
 
-  // specific ref to manage the connection
   const eventSourceRef = useRef(null);
   const logsEndRef = useRef(null);
 
-  // --- Your Existing Markdown Parser (Unchanged) ---
   const parseMarkdown = (text) => {
     if (!text) return '';
     let html = text
@@ -30,24 +28,20 @@ export default function AIResearchApp() {
     return `<p class="mb-3">${html}</p>`;
   };
 
-  // --- New Streaming Logic ---
   const handleStartStream = async () => {
     if (!query.trim()) return;
 
-    // Reset State
     setIsStreaming(true);
     setError(null);
     setFinalReport(null);
     setStreamLogs([]);
     setSessionId(null);
 
-    // Close previous connection if exists
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
 
     try {
-      // Initialize SSE
       const url = `${SERVER_BASE_URL}/research-stream?query=${encodeURIComponent(query)}`;
       const es = new EventSource(url);
       eventSourceRef.current = es;
@@ -56,16 +50,17 @@ export default function AIResearchApp() {
         try {
           const data = JSON.parse(event.data);
 
-          // Handle Session ID if it comes in
           if (data.session_id) {
             setSessionId(data.session_id);
           }
 
-          if (['agent_message', 'progress', 'status'].includes(data.type)) {
-            // Add to log list
+          if (data.type === 'error') {
+            setError(data.message || 'An error occurred during processing');
+            es.close();
+            setIsStreaming(false);
+          } else if (['agent_message', 'progress', 'status'].includes(data.type)) {
             setStreamLogs((prev) => [...prev, data]);
           } else if (data.type === 'final') {
-            // Render the final report
             setFinalReport(data.message);
             es.close();
             setIsStreaming(false);
@@ -76,10 +71,7 @@ export default function AIResearchApp() {
       };
 
       es.onerror = (err) => {
-        // EventSource errors are tricky, often just connection closed
         console.error("Stream error:", err);
-        // If we have no logs and no report, it's a real error. 
-        // If we have logs, it might just be a server timeout or close.
         if (streamLogs.length === 0 && !finalReport) {
             setError('Connection to stream failed. Ensure the backend is running.');
         }

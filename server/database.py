@@ -13,7 +13,7 @@ class MongoHandler:
         self.client = None
         self.db = None
         self.logs = None
-        self.reports = None # New collection for final structured reports
+        self.reports = None
         
         if self.uri:
             try:
@@ -28,7 +28,6 @@ class MongoHandler:
             logger.warning("MONGO_URI not found. Database logging is disabled.")
 
     def log_query(self, session_id: str, query: str):
-        """Logs the initial user query."""
         if self.logs is not None:
             doc = {
                 "session_id": session_id,
@@ -40,19 +39,17 @@ class MongoHandler:
             self.logs.insert_one(doc)
 
     def log_step(self, session_id: str, agent_name: str, action: str, content: str):
-        """Logs intermediate agent actions (outputs) to MongoDB."""
         if self.logs is not None:
             doc = {
                 "session_id": session_id,
                 "timestamp": datetime.datetime.utcnow(),
                 "agent": agent_name,
                 "action": action,
-                "content": str(content)[:2000] # Truncate for storage efficiency, increased size
+                "content": str(content)[:2000]  # truncate long content
             }
             self.logs.insert_one(doc)
 
     def log_final_report(self, session_id: str, final_report: dict):
-        """Logs the final structured report (the result) to a separate collection."""
         if self.reports is not None:
             doc = {
                 "session_id": session_id,
@@ -60,6 +57,5 @@ class MongoHandler:
                 "report": final_report
             }
             self.reports.insert_one(doc)
-            
-# Global instance
+
 db_handler = MongoHandler()
