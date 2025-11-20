@@ -7,7 +7,12 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.graph import StateGraph, END, START
 from langgraph.prebuilt import create_react_agent
 
-from tools import tavily_map_site, tavily_crawl_summary, tavily_extract_content
+from tools import (
+    tavily_search_research,
+    tavily_map_site,
+    tavily_crawl_summary,
+    tavily_extract_content,
+)
 from database import db_handler
 
 # --- Config ---
@@ -25,8 +30,8 @@ class AgentState(TypedDict):
 # 1. The Scout: Maps site structure
 scout_agent = create_react_agent(
     llm_fast, 
-    [tavily_map_site, tavily_crawl_summary],
-    prompt="You are a Recon Scout. Find relevant URLs for the user's target topic using map and crawl tools."
+    [tavily_search_research, tavily_map_site, tavily_crawl_summary],
+    prompt="You are a Recon Scout. Use Tavily search, map, and crawl tools to chart the research surface area."
 )
 
 # 2. The Analyst: Extracts deep data

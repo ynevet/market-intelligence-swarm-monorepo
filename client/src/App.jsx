@@ -101,6 +101,21 @@ export default function AIResearchApp() {
     }
   };
 
+  const handleDownloadReport = () => {
+    if (!finalReport) return;
+    const blob = new Blob([finalReport], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const filename = `market-intel-report-${sessionId || 'latest'}.md`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setStreamLogs((prev) => [...prev, { type: 'info', message: `Report exported as ${filename}` }]);
+  };
+
   // Auto-scroll logs
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -206,9 +221,17 @@ export default function AIResearchApp() {
                         <FileText className="w-6 h-6 text-blue-600" />
                         <h2 className="text-2xl font-bold text-gray-900">Final Report</h2>
                     </div>
-                    {sessionId && (
-                        <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-500">ID: {sessionId}</span>
-                    )}
+                    <div className="flex items-center gap-3">
+                        {sessionId && (
+                            <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-500">ID: {sessionId}</span>
+                        )}
+                        <button
+                          onClick={handleDownloadReport}
+                          className="px-3 py-2 text-sm font-medium text-blue-700 border border-blue-200 rounded-md hover:bg-blue-50 transition-colors"
+                        >
+                          Export Markdown
+                        </button>
+                    </div>
                 </div>
                 <div 
                 className="prose prose-sm max-w-none text-gray-700"
