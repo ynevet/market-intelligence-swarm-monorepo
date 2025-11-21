@@ -17,3 +17,11 @@ client/.env
 # Docker artifacts
 *.log
 
+# Deployment files (root level - use deploy/ folder for templates)
+Dockerrun.aws.json
+
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
