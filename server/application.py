@@ -24,9 +24,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("market_intel.application")
 MAX_QUERY_CHARS = 800
-RECURSION_LIMIT = 15
+RECURSION_LIMIT = int(os.environ.get('GRAPH_RECURSION_LIMIT', '200'))
 RECURSION_MESSAGE = (
-    "This request is taking longer than expected. Please refine your query and try again."
+    "We're still working through that request. Please try again with a bit more detail."
 )
 POLICY_VIOLATION_MESSAGE = (
     "This request can't be processed because it violates our usage guidelines. "
@@ -181,7 +181,7 @@ def run_research():
         })
 
     except GraphRecursionError as exc:
-        logger.warning("Recursion limit hit for session %s: %s", session_id, exc)
+        logger.warning("Recursion limit (%s) hit for session %s: %s", RECURSION_LIMIT, session_id, exc)
         return jsonify({"error": RECURSION_MESSAGE}), 429
     except Exception as e:
         logger.exception("Non-streaming research failed")
@@ -264,7 +264,7 @@ def run_research_stream():
                 })
 
         except GraphRecursionError as exc:
-            logger.warning("Recursion limit hit for session %s: %s", session_id, exc)
+            logger.warning("Recursion limit (%s) hit for session %s: %s", RECURSION_LIMIT, session_id, exc)
             yield sse_format({
                 "type": "error",
                 "session_id": session_id,
