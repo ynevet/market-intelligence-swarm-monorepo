@@ -8,6 +8,7 @@ from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
+from langgraph.errors import GraphRecursionError
 from openai import OpenAI
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -23,6 +24,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger("market_intel.application")
 MAX_QUERY_CHARS = 800
+RECURSION_LIMIT = 15
+RECURSION_MESSAGE = (
+    "This request is taking longer than expected. Please refine your query and try again."
+)
 POLICY_VIOLATION_MESSAGE = (
     "This request can't be processed because it violates our usage guidelines. "
     "Try rephrasing with a professional market or competitive research question."
@@ -164,7 +169,7 @@ def run_research():
     final_response = ""
 
     try:
-        for event in market_graph.stream(initial_state):
+        for event in market_graph.stream(initial_state, config={"recursion_limit": RECURSION_LIMIT}):
             for key, value in event.items():
                 if "messages" in value and value["messages"]:
                     msg = value["messages"][-1]
@@ -175,9 +180,12 @@ def run_research():
             "result": final_response
         })
 
+    except GraphRecursionError as exc:
+        logger.warning("Recursion limit hit for session %s: %s", session_id, exc)
+        return jsonify({"error": RECURSION_MESSAGE}), 429
     except Exception as e:
         logger.exception("Non-streaming research failed")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Something went wrong while running this query."}), 500
 
 
 @application.route('/research-stream', methods=['GET'])
@@ -234,7 +242,7 @@ def run_research_stream():
 
             last_message = None
 
-            for event in market_graph.stream(initial_state):
+            for event in market_graph.stream(initial_state, config={"recursion_limit": RECURSION_LIMIT}):
                 for node_name, state in event.items():
                     messages = state.get("messages", [])
                     if not messages:
@@ -255,12 +263,19 @@ def run_research_stream():
                     "message": last_message.content
                 })
 
+        except GraphRecursionError as exc:
+            logger.warning("Recursion limit hit for session %s: %s", session_id, exc)
+            yield sse_format({
+                "type": "error",
+                "session_id": session_id,
+                "message": RECURSION_MESSAGE
+            })
         except Exception as e:
             logger.exception("Streaming research failed for %s", session_id)
             yield sse_format({
                 "type": "error",
                 "session_id": session_id,
-                "message": str(e)
+                "message": "Something went wrong while running this query."
             })
 
     response = Response(stream_with_context(event_stream()), mimetype="text/event-stream")
