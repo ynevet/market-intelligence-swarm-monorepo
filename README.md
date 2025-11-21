@@ -1,6 +1,14 @@
 ## Market Intelligence Swarm
 
-Monorepo containing the LangGraph/Tavily-powered Flask backend (`server/`) and the Vite/React frontend (`client/`). Both services are containerized and orchestrated with Docker Compose for local development, and the Dockerfiles are production-ready for AWS Elastic Beanstalk multi-container deployments.
+Monorepo containing the LangGraph/Tavily-powered Flask backend (`server/`) and the Vite/React frontend (`client/`). Both services are containerized and orchestrated with Docker Compose for local development, and the Dockerfiles are production-ready for AWS Elastic Beanstalk multi-container deployments. See `docs/ARCHITECTURE.md` for an end-to-end design walkthrough (agents, LangGraph flow, Mongo schema, and AWS topology).
+
+### Assignment Checklist
+
+- ✅ Multi-agent LangGraph with **Scout** (Tavily search/map/crawl) and **Analyst** (Tavily extract) workers, orchestrated by a Supervisor router.
+- ✅ Tavily endpoints exercised: `search`, `map`, `crawl`, and `extract`.
+- ✅ MongoDB Atlas logging of user prompts, intermediate agent messages, and final reports.
+- ✅ React UI with live SSE log, markdown rendering, and **Export Markdown** button to satisfy the “view results + export outputs” requirement.
+- ✅ AWS EB-ready containers plus `deploy/Dockerrun.aws.json` template for the multi-container platform.
 
 ### Prerequisites
 - Docker Desktop 4.24+ (Compose v2)
@@ -43,43 +51,11 @@ docker build -t mis-client --target production --build-arg VITE_SERVER_URL=https
 ### AWS Elastic Beanstalk Deployment Notes
 1. Use the **Multi-container Docker on Amazon Linux 2** platform so Elastic Beanstalk spins up an ECS cluster that understands multiple containers.
 2. Push both images to Amazon ECR (one repository per service). Tag them `latest` or any semantic version.
-3. Create a `Dockerrun.aws.json` (v2) that references the two ECR images. Example:
-```
-{
-  "AWSEBDockerrunVersion": 2,
-  "containerDefinitions": [
-    {
-      "name": "server",
-      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/mis-server:latest",
-      "essential": true,
-      "memory": 512,
-      "portMappings": [{ "containerPort": 5000 }],
-      "environment": [
-        { "name": "OPENAI_API_KEY", "value": "****" },
-        { "name": "TAVILY_API_KEY", "value": "****" },
-        { "name": "MONGO_URI", "value": "****" }
-      ]
-    },
-    {
-      "name": "client",
-      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/mis-client:latest",
-      "essential": true,
-      "memory": 256,
-      "portMappings": [{ "containerPort": 4173 }],
-      "links": ["server"],
-      "environment": [
-        { "name": "NODE_ENV", "value": "production" },
-        { "name": "VITE_SERVER_URL", "value": "http://server:5000" }
-      ]
-    }
-  ]
-}
-```
-4. Zip `Dockerrun.aws.json` (and any `.ebextensions` you might add later) and deploy with `eb deploy`.
-5. In the EB console, configure health checks and listener rules so that:
+3. Copy `deploy/Dockerrun.aws.json` to the repo root, replace the placeholder ECR URIs + secrets, and include it in the ZIP you deploy with `eb deploy`.
+4. In the EB console, configure health checks and listener rules so that:
    - Port 80 (ALB listener) points to the `client` container (`4173`).
    - Optional: add path-based rule `/api/*` → `server:5000` if you expose the API directly. Alternatively, keep the server private and let the client call it via the ECS internal network (`http://server:5000` as configured above).
-6. Store secrets (Tavily, MongoDB) as EB environment variables; they override the defaults from `Dockerrun`.
+5. Store secrets (Tavily, MongoDB, OpenAI) as EB environment variables to avoid checking them into source control. These will override the placeholder values in `Dockerrun`.
 
 With this setup you can iterate locally with `docker compose` and later promote the same containers to AWS Elastic Beanstalk without code changes.
 

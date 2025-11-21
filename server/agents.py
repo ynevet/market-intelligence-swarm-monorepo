@@ -1,42 +1,52 @@
-import os
 import operator
 from typing import Annotated, List, TypedDict, Literal
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import BaseMessage, HumanMessage
+
+try:
+    from langchain.agents import create_agent as _create_agent
+except ImportError:
+    from langgraph.prebuilt import create_react_agent as _create_agent
+
+def build_agent(llm, tools, prompt):
+    try:
+        return _create_agent(llm, tools=tools, system_prompt=prompt)
+    except TypeError:
+        # fallback for older API
+        return _create_agent(llm, tools, prompt=prompt)
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.graph import StateGraph, END, START
-from langgraph.prebuilt import create_react_agent
 
-from tools import tavily_map_site, tavily_crawl_summary, tavily_extract_content
+from tools import (
+    tavily_search_research,
+    tavily_map_site,
+    tavily_crawl_summary,
+    tavily_extract_content,
+)
 from database import db_handler
 
-# --- Config ---
-# Use gpt-4o-mini for workers to save costs, gpt-4o for supervisor
+# Use cheaper model for workers
 llm_fast = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 llm_smart = ChatOpenAI(model="gpt-4o", temperature=0)
 
-# --- State Definition ---
 class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], operator.add]
     next: str
     session_id: str
 
-# --- Worker Agents ---
-# 1. The Scout: Maps site structure
-scout_agent = create_react_agent(
-    llm_fast, 
-    [tavily_map_site, tavily_crawl_summary],
-    prompt="You are a Recon Scout. Find relevant URLs for the user's target topic using map and crawl tools."
+# Scout agent - finds URLs and site structure
+scout_agent = build_agent(
+    llm_fast,
+    [tavily_search_research, tavily_map_site, tavily_crawl_summary],
+    "You are a Recon Scout. Use Tavily search, map, and crawl tools to chart the research surface area."
 )
 
-# 2. The Analyst: Extracts deep data
-analyst_agent = create_react_agent(
+# Analyst agent - extracts detailed content
+analyst_agent = build_agent(
     llm_fast,
     [tavily_extract_content],
-    prompt="You are a Data Analyst. Extract raw content from specific URLs provided by the Scout to answer specific questions."
+    "You are a Data Analyst. Extract raw content from specific URLs provided by the Scout to answer specific questions."
 )
-
-# --- Node Wrappers (with DB Logging) ---
 def scout_node(state: AgentState):
     result = scout_agent.invoke(state)
     output = result["messages"][-1]
@@ -49,7 +59,7 @@ def analyst_node(state: AgentState):
     db_handler.log_step(state.get("session_id"), "Analyst", "Extraction", output.content)
     return {"messages": [output]}
 
-# --- Supervisor (Router) ---
+# Supervisor routes between agents
 members = ["Scout", "Analyst"]
 options = ["FINISH"] + members
 
@@ -73,8 +83,6 @@ def supervisor_node(state: AgentState):
     chain = prompt | llm_smart.with_structured_output(RouterOutput)
     result = chain.invoke(state)
     return {"next": result["next"]}
-
-# --- Graph Construction ---
 workflow = StateGraph(AgentState)
 workflow.add_node("Supervisor", supervisor_node)
 workflow.add_node("Scout", scout_node)

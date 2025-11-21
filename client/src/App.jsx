@@ -7,15 +7,13 @@ export default function AIResearchApp() {
   const [query, setQuery] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [finalReport, setFinalReport] = useState(null);
-  const [streamLogs, setStreamLogs] = useState([]); // Stores the "agent_message" events
+  const [streamLogs, setStreamLogs] = useState([]);
   const [error, setError] = useState(null);
   const [sessionId, setSessionId] = useState(null);
 
-  // specific ref to manage the connection
   const eventSourceRef = useRef(null);
   const logsEndRef = useRef(null);
 
-  // --- Your Existing Markdown Parser (Unchanged) ---
   const parseMarkdown = (text) => {
     if (!text) return '';
     let html = text
@@ -30,24 +28,20 @@ export default function AIResearchApp() {
     return `<p class="mb-3">${html}</p>`;
   };
 
-  // --- New Streaming Logic ---
   const handleStartStream = async () => {
     if (!query.trim()) return;
 
-    // Reset State
     setIsStreaming(true);
     setError(null);
     setFinalReport(null);
     setStreamLogs([]);
     setSessionId(null);
 
-    // Close previous connection if exists
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
 
     try {
-      // Initialize SSE
       const url = `${SERVER_BASE_URL}/research-stream?query=${encodeURIComponent(query)}`;
       const es = new EventSource(url);
       eventSourceRef.current = es;
@@ -56,16 +50,17 @@ export default function AIResearchApp() {
         try {
           const data = JSON.parse(event.data);
 
-          // Handle Session ID if it comes in
           if (data.session_id) {
             setSessionId(data.session_id);
           }
 
-          if (['agent_message', 'progress', 'status'].includes(data.type)) {
-            // Add to log list
+          if (data.type === 'error') {
+            setError(data.message || 'An error occurred during processing');
+            es.close();
+            setIsStreaming(false);
+          } else if (['agent_message', 'progress', 'status'].includes(data.type)) {
             setStreamLogs((prev) => [...prev, data]);
           } else if (data.type === 'final') {
-            // Render the final report
             setFinalReport(data.message);
             es.close();
             setIsStreaming(false);
@@ -76,10 +71,7 @@ export default function AIResearchApp() {
       };
 
       es.onerror = (err) => {
-        // EventSource errors are tricky, often just connection closed
         console.error("Stream error:", err);
-        // If we have no logs and no report, it's a real error. 
-        // If we have logs, it might just be a server timeout or close.
         if (streamLogs.length === 0 && !finalReport) {
             setError('Connection to stream failed. Ensure the backend is running.');
         }
@@ -99,6 +91,21 @@ export default function AIResearchApp() {
       setStreamLogs((prev) => [...prev, { type: 'info', message: 'Stream stopped by user.' }]);
       setIsStreaming(false);
     }
+  };
+
+  const handleDownloadReport = () => {
+    if (!finalReport) return;
+    const blob = new Blob([finalReport], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const filename = `market-intel-report-${sessionId || 'latest'}.md`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setStreamLogs((prev) => [...prev, { type: 'info', message: `Report exported as ${filename}` }]);
   };
 
   // Auto-scroll logs
@@ -206,9 +213,17 @@ export default function AIResearchApp() {
                         <FileText className="w-6 h-6 text-blue-600" />
                         <h2 className="text-2xl font-bold text-gray-900">Final Report</h2>
                     </div>
-                    {sessionId && (
-                        <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-500">ID: {sessionId}</span>
-                    )}
+                    <div className="flex items-center gap-3">
+                        {sessionId && (
+                            <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-500">ID: {sessionId}</span>
+                        )}
+                        <button
+                          onClick={handleDownloadReport}
+                          className="px-3 py-2 text-sm font-medium text-blue-700 border border-blue-200 rounded-md hover:bg-blue-50 transition-colors"
+                        >
+                          Export Markdown
+                        </button>
+                    </div>
                 </div>
                 <div 
                 className="prose prose-sm max-w-none text-gray-700"
@@ -229,6 +244,8 @@ export default function AIResearchApp() {
                     <ul className="text-sm text-gray-600 space-y-1">
                         <li>• Map stripe.com and extract pricing tiers</li>
                         <li>• Analyze hubspot.com product features</li>
+                        <li>• Benchmark Cursor AI vs GitHub Copilot for enterprise teams</li>
+                        <li>• Compare Spotify’s pricing and feature bundles against Apple Music</li>
                     </ul>
                 </div>
             </div>

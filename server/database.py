@@ -1,7 +1,11 @@
-import os
 import datetime
+import logging
+import os
+
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
+
+logger = logging.getLogger("market_intel.database")
 
 class MongoHandler:
     def __init__(self):
@@ -9,7 +13,7 @@ class MongoHandler:
         self.client = None
         self.db = None
         self.logs = None
-        self.reports = None # New collection for final structured reports
+        self.reports = None
         
         if self.uri:
             try:
@@ -17,14 +21,13 @@ class MongoHandler:
                 self.db = self.client.get_database("market_swarm_db")
                 self.logs = self.db.get_collection("agent_logs")
                 self.reports = self.db.get_collection("final_reports")
-                print("--- Connected to MongoDB Atlas ---")
+                logger.info("Connected to MongoDB Atlas")
             except ConnectionFailure as e:
-                print(f"--- MongoDB Connection Failed: {e} ---")
+                logger.exception("MongoDB connection failed: %s", e)
         else:
-            print("--- WARNING: MONGO_URI not found. Database logging is disabled. ---")
+            logger.warning("MONGO_URI not found. Database logging is disabled.")
 
     def log_query(self, session_id: str, query: str):
-        """Logs the initial user query."""
         if self.logs is not None:
             doc = {
                 "session_id": session_id,
@@ -36,19 +39,17 @@ class MongoHandler:
             self.logs.insert_one(doc)
 
     def log_step(self, session_id: str, agent_name: str, action: str, content: str):
-        """Logs intermediate agent actions (outputs) to MongoDB."""
         if self.logs is not None:
             doc = {
                 "session_id": session_id,
                 "timestamp": datetime.datetime.utcnow(),
                 "agent": agent_name,
                 "action": action,
-                "content": str(content)[:2000] # Truncate for storage efficiency, increased size
+                "content": str(content)[:2000]  # truncate long content
             }
             self.logs.insert_one(doc)
 
     def log_final_report(self, session_id: str, final_report: dict):
-        """Logs the final structured report (the result) to a separate collection."""
         if self.reports is not None:
             doc = {
                 "session_id": session_id,
@@ -56,6 +57,5 @@ class MongoHandler:
                 "report": final_report
             }
             self.reports.insert_one(doc)
-            
-# Global instance
+
 db_handler = MongoHandler()

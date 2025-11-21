@@ -1,53 +1,91 @@
+import logging
 import os
+
 from langchain_core.tools import tool
 from tavily import TavilyClient
 
-# Initialize Tavily Client directly for advanced endpoints
 tavily_client = TavilyClient(api_key=os.environ.get("TAVILY_API_KEY"))
+logger = logging.getLogger("market_intel.tools")
+
+@tool
+def tavily_search_research(query: str) -> str:
+    """Search Tavily for competitive intel"""
+    try:
+        logger.info("[Tool] Searching for %s", query)
+        response = tavily_client.search(
+            query=query,
+            search_depth="advanced",
+            max_results=10,
+            include_images=False,
+            include_answer=True,
+        )
+        answer = response.get("answer", "No direct answer provided.")
+        results = response.get("results", [])
+        bullets = "\n".join(
+            f"- {item.get('title', 'Untitled')}: {item.get('url')}"
+            for item in results[:10]
+        )
+        return f"Search answer:\n{answer}\n\nTop sources:\n{bullets}"
+    except Exception as e:
+        return f"Error searching web: {str(e)}"
 
 @tool
 def tavily_map_site(url: str) -> str:
-    """
-    Maps a domain to find its site structure and sub-pages. 
-    Use this first to discover relevant URLs (e.g., /pricing, /features).
-    """
+    """Map a site's structure using Tavily"""
     try:
-        # Attempts to use the Map endpoint (if available on plan), 
-        # falls back to site-specific search if needed.
-        # Note: detailed 'map' is an advanced Tavily feature.
-        print(f"--- [Tool] Mapping {url} ---")
-        # Using search with depth="advanced" to simulate mapping if strictly map endpoint is locked
-        response = tavily_client.search(query=f"site:{url} map", search_depth="advanced")
-        urls = [r['url'] for r in response.get('results', [])]
-        return f"Discovered URLs for {url}:\n" + "\n".join(urls[:10])
+        logger.info("[Tool] Mapping %s", url)
+        response = tavily_client.map(
+            url=url,
+            max_depth=2,
+            max_breadth=25,
+            limit=25,
+            instructions="Surface pricing, product, feature, and plans related paths.",
+            include_images=False,
+        )
+        nodes = response.get("nodes", [])
+        if not nodes:
+            return f"No map results returned for {url}."
+        lines = []
+        for node in nodes[:25]:
+            path = node.get("url", "")
+            title = node.get("title") or node.get("description") or ""
+            lines.append(f"- {path} :: {title}")
+        return f"Discovered structure for {url}:\n" + "\n".join(lines)
     except Exception as e:
         return f"Error mapping site: {str(e)}"
 
 @tool
 def tavily_crawl_summary(url: str) -> str:
-    """
-    Crawls a specific URL to get a broad summary and context.
-    Useful for understanding what a page is about before extracting details.
-    """
+    """Crawl a URL to get summary and context"""
     try:
-        print(f"--- [Tool] Crawling {url} ---")
-        # usage of get_search_context acts as a smart crawl/summarizer
-        context = tavily_client.get_search_context(query=f"summary of {url}", max_tokens=2000)
-        return f"Page Summary for {url}:\n{context}"
+        logger.info("[Tool] Crawling %s", url)
+        response = tavily_client.crawl(
+            url=url,
+            extract_depth="advanced",
+            format="markdown",
+            limit=5,
+            include_images=False,
+        )
+        pages = response.get("results", [])
+        if not pages:
+            return f"No crawl summary returned for {url}."
+        summaries = []
+        for page in pages[:5]:
+            summaries.append(
+                f"--- {page.get('url', url)} ---\n{page.get('content', '')[:1500]}..."
+            )
+        return "\n\n".join(summaries)
     except Exception as e:
         return f"Error crawling site: {str(e)}"
 
 @tool
 def tavily_extract_content(urls: str) -> str:
-    """
-    Extracts raw, clean text data from a comma-separated list of URLs.
-    Use this to get precise data like pricing tables or specs.
-    """
+    """Extract raw text from URLs (comma-separated)"""
     try:
         url_list = [u.strip() for u in urls.split(",")]
-        print(f"--- [Tool] Extracting from {len(url_list)} URLs ---")
+        logger.info("[Tool] Extracting from %d URLs", len(url_list))
         response = tavily_client.extract(urls=url_list)
-        
+
         extracted_data = []
         for result in response.get('results', []):
             extracted_data.append(f"--- Content from {result['url']} ---\n{result['raw_content'][:1500]}...")
