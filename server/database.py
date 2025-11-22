@@ -27,7 +27,7 @@ class MongoHandler:
         else:
             logger.warning("MONGO_URI not found. Database logging is disabled.")
 
-    def log_query(self, session_id: str, query: str):
+    def log_query(self, session_id: str, query: str, user_info: dict = None):
         if self.logs is not None:
             doc = {
                 "session_id": session_id,
@@ -36,6 +36,8 @@ class MongoHandler:
                 "action": "Initial Query",
                 "content": query
             }
+            if user_info:
+                doc.update({k: v for k, v in user_info.items() if v is not None})
             self.logs.insert_one(doc)
 
     def log_step(self, session_id: str, agent_name: str, action: str, content: str):
@@ -49,13 +51,15 @@ class MongoHandler:
             }
             self.logs.insert_one(doc)
 
-    def log_final_report(self, session_id: str, final_report: dict):
+    def log_final_report(self, session_id: str, final_report: dict, metadata: dict = None):
         if self.reports is not None:
             doc = {
                 "session_id": session_id,
                 "timestamp": datetime.datetime.utcnow(),
                 "report": final_report
             }
+            if metadata:
+                doc.update(metadata)
             self.reports.insert_one(doc)
 
 db_handler = MongoHandler()

@@ -29,7 +29,7 @@ Docker images exist for both services. `docker-compose.yml` wires them together 
 - **Analyst**: Applies `tavily_extract_content` to pull structured evidence from Scout-proposed URLs.
 - **Supervisor**: A router agent that decides the next worker (`Scout`, `Analyst`, or `FINISH`) using a structured output policy.
 
-Each agent writes its latest message to MongoDB (`agent_logs`), enabling the UI and auditors to replay every step.
+Each agent writes its latest message to MongoDB (`agent_logs`), enabling the UI and auditors to replay every step. Upon completion, the final report is persisted to `final_reports` with comprehensive execution metadata including timing, node execution counts, discovered URLs, and query classification results.
 
 ## LangGraph Flow
 
@@ -46,8 +46,8 @@ MongoDB Atlas (`market_swarm_db`) stores:
 
 | Collection | Shape |
 |------------|-------|
-| `agent_logs` | `{ session_id, timestamp, agent, action, content }` – every intermediate step |
-| `final_reports` | `{ session_id, timestamp, report }` – structured final answers |
+| `agent_logs` | `{ session_id, timestamp, agent, action, content, ip_address? }` – every intermediate step, with optional IP for request tracking |
+| `final_reports` | `{ session_id, timestamp, report, query, start_time, duration_seconds, status, node_execution_counts, total_steps, discovered_urls, url_count, is_market_intel?, confidence?, moderation_passed?, error_message? }` – structured final answers with comprehensive execution metadata |
 
 Environment variables:
 
@@ -69,6 +69,6 @@ Environment variables:
 - **Health check**: `GET /` returns `{ status: "active" }`.
 - **Blocking run**: `POST /research`.
 - **Streaming run**: `GET /research-stream?query=...` – SSE channel consumed by the UI.
-- **Mongo logs**: Inspect Atlas collections to verify query ingestion and agent traces.
+- **Mongo logs**: Inspect Atlas collections to verify query ingestion and agent traces. The `final_reports` collection includes execution metrics, discovered sources, and query classification metadata for analytics and debugging.
 - **Frontend**: `npm run lint` ensures JSX/hooks correctness; download button exports Markdown evidence for manual QA.
 
