@@ -17,11 +17,11 @@ export default function AIResearchApp() {
   const parseMarkdown = (text) => {
     if (!text) return '';
     let html = text
-      .replace(/^#### (.*$)/gim, '<h4 class="text-lg font-semibold mt-4 mb-2">$1</h4>')
-      .replace(/^### (.*$)/gim, '<h3 class="text-xl font-semibold mt-6 mb-3">$1</h3>')
-      .replace(/^## (.*$)/gim, '<h2 class="text-2xl font-semibold mt-6 mb-3">$1</h2>')
-      .replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold mt-6 mb-4">$1</h1>')
-      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+      .replace(/^#### (.*$)/gim, '<h4 class="text-lg font-semibold mt-4 mb-2 text-gray-900">$1</h4>')
+      .replace(/^### (.*$)/gim, '<h3 class="text-xl font-semibold mt-6 mb-3 text-gray-900">$1</h3>')
+      .replace(/^## (.*$)/gim, '<h2 class="text-2xl font-semibold mt-6 mb-3 text-gray-900">$1</h2>')
+      .replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold mt-6 mb-4 text-gray-900">$1</h1>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">$1</a>')
       .replace(/\n\n/g, '</p><p class="mb-3">')
       .replace(/\n/g, '<br/>');
@@ -227,7 +227,7 @@ export default function AIResearchApp() {
                     </div>
                 </div>
                 <div 
-                className="prose prose-sm max-w-none text-gray-700"
+                className="prose prose-sm max-w-none text-gray-700 [&_h1]:text-gray-900 [&_h2]:text-gray-900 [&_h3]:text-gray-900 [&_h4]:text-gray-900 [&_h5]:text-gray-900 [&_h6]:text-gray-900 [&_strong]:text-gray-900"
                 dangerouslySetInnerHTML={{ __html: parseMarkdown(finalReport) }}
                 />
             </div>
