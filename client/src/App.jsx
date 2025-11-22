@@ -128,7 +128,7 @@ export default function AIResearchApp() {
         {/* Header */}
         <div className="text-center mb-8 px-2">
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2 leading-tight">Market Intelligence Swarm</h1>
-          <p className="text-sm sm:text-base text-gray-600">Real-time AI competitive analysis stream</p>
+          <p className="text-sm sm:text-base text-gray-600">Multi-agent AI system for real-time competitive analysis</p>
         </div>
 
         {/* Search Input */}
@@ -186,7 +186,7 @@ export default function AIResearchApp() {
                 <div className="bg-gray-900 rounded-lg shadow-md p-4 sm:p-6 text-gray-300 font-mono text-xs sm:text-sm border border-gray-700">
                     <div className="flex flex-wrap items-center gap-2 mb-4 border-b border-gray-700 pb-2">
                         <Terminal className="w-4 h-4 text-green-400" />
-                        <span className="font-semibold text-gray-100 text-sm sm:text-base">Live Agent Activity</span>
+                        <span className="font-semibold text-gray-100 text-sm sm:text-base">Live Agents Activity</span>
                         {isStreaming && <Loader2 className="w-3 h-3 animate-spin text-green-400 ml-auto" />}
                     </div>
                     <div className="max-h-64 sm:max-h-60 overflow-y-auto space-y-2 pr-2">
