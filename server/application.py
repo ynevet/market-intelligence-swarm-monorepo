@@ -157,7 +157,6 @@ def extract_request_metadata(request) -> dict:
 
 class ResearchRequest(BaseModel):
     query: str = Field(..., min_length=5, max_length=MAX_QUERY_CHARS)
-    session_id: str | None = None
 
     @field_validator("query")
     @classmethod
@@ -187,7 +186,7 @@ def run_research():
         return jsonify({"error": "Invalid request body", "details": exc.errors()}), 400
 
     query = payload.query
-    session_id = payload.session_id or str(uuid.uuid4())
+    session_id = str(uuid.uuid4())
 
     guard_response = enforce_query_guards(query)
     if guard_response:
@@ -297,7 +296,7 @@ def run_research():
 def run_research_stream():
     """SSE streaming endpoint"""
     query = (request.args.get('query') or "").strip()
-    session_id = request.args.get('session_id', str(uuid.uuid4()))
+    session_id = str(uuid.uuid4())
 
     def sse_format(payload: dict) -> str:
         return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
