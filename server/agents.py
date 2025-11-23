@@ -12,7 +12,6 @@ def build_agent(llm, tools, prompt):
     try:
         return _create_agent(llm, tools=tools, system_prompt=prompt)
     except TypeError:
-        # fallback for older API
         return _create_agent(llm, tools, prompt=prompt)
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.graph import StateGraph, END, START
@@ -25,7 +24,6 @@ from tools import (
 )
 from database import db_handler
 
-# Use cheaper model for workers
 llm_fast = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 llm_smart = ChatOpenAI(model="gpt-4o", temperature=0)
 
@@ -34,14 +32,12 @@ class AgentState(TypedDict):
     next: str
     session_id: str
 
-# Scout agent - finds URLs and site structure
 scout_agent = build_agent(
     llm_fast,
     [tavily_search_research, tavily_map_site, tavily_crawl_summary],
     "You are a Recon Scout. Use Tavily search, map, and crawl tools to chart the research surface area."
 )
 
-# Analyst agent - extracts detailed content
 analyst_agent = build_agent(
     llm_fast,
     [tavily_extract_content],
@@ -59,7 +55,6 @@ def analyst_node(state: AgentState):
     db_handler.log_step(state.get("session_id"), "Analyst", "Extraction", output.content)
     return {"messages": [output]}
 
-# Supervisor routes between agents
 members = ["Scout", "Analyst"]
 options = ["FINISH"] + members
 
@@ -84,7 +79,6 @@ def supervisor_node(state: AgentState):
     result = chain.invoke(state)
     next_agent = result["next"]
     
-    # If FINISH, generate a comprehensive final report from all messages
     if next_agent == "FINISH":
         final_report_prompt = ChatPromptTemplate.from_messages([
             ("system", "You are a Research Report Writer. Synthesize a comprehensive, well-structured market intelligence report from the conversation history. Format it in clear markdown with sections, headers, and bullet points. Include all key findings, data points, and insights discovered during the research."),
@@ -94,16 +88,13 @@ def supervisor_node(state: AgentState):
         final_chain = final_report_prompt | llm_smart
         final_message = final_chain.invoke(state)
         
-        # Log supervisor decision and final report generation
         db_handler.log_step(state.get("session_id"), "Supervisor", "Routing", f"Routing to: {next_agent}")
         db_handler.log_step(state.get("session_id"), "Supervisor", "Final Report", final_message.content[:500] + "..." if len(final_message.content) > 500 else final_message.content)
         
         return {"next": next_agent, "messages": [final_message]}
     else:
-        # Create a message for the supervisor decision so it appears in the stream
         decision_message = AIMessage(content=f"Routing to {next_agent}")
         
-        # Log supervisor decision
         db_handler.log_step(state.get("session_id"), "Supervisor", "Routing", f"Routing to: {next_agent}")
         
         return {"next": next_agent, "messages": [decision_message]}
