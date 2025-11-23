@@ -222,9 +222,7 @@ def run_research():
                     node_counts[node_name] += 1
                 if "messages" in value and value["messages"]:
                     msg = value["messages"][-1]
-                    # Skip Supervisor routing messages in final report
-                    if node_name != "Supervisor" or not msg.content.startswith("Routing to"):
-                        final_response = msg.content
+                    final_response = msg.content
                     # Extract URLs from messages
                     urls = extract_urls_from_content(msg.content)
                     discovered_urls.update(urls)
@@ -365,22 +363,17 @@ def run_research_stream():
                     
                     messages = state.get("messages", [])
                     if messages:
-                        message = messages[-1]
+                        last_message = messages[-1]
                         # Extract URLs from messages
-                        urls = extract_urls_from_content(message.content)
+                        urls = extract_urls_from_content(last_message.content)
                         discovered_urls.update(urls)
                         
-                        # Stream all messages including Supervisor routing for visibility
                         yield sse_format({
                             "type": "agent_message",
                             "session_id": session_id,
                             "node": node_name,
-                            "message": message.content
+                            "message": last_message.content
                         })
-                        
-                        # Only use Scout/Analyst messages for final report (skip Supervisor routing)
-                        if node_name != "Supervisor" or not message.content.startswith("Routing to"):
-                            last_message = message
                     elif node_name in node_counts:
                         # Log node execution even if no messages (for debugging)
                         logger.debug(f"Node {node_name} executed but no messages in state")
