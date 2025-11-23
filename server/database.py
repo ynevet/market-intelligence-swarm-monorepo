@@ -47,7 +47,7 @@ class MongoHandler:
                 "timestamp": datetime.datetime.utcnow(),
                 "agent": agent_name,
                 "action": action,
-                "content": str(content)[:2000]  # truncate long content
+                "content": str(content)[:2000]
             }
             self.logs.insert_one(doc)
 

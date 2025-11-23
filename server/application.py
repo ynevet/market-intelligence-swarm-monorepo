@@ -37,7 +37,6 @@ POLICY_VIOLATION_MESSAGE = (
 )
 moderation_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY")) if os.environ.get("OPENAI_API_KEY") else None
 
-# LLM for checking if queries are market-intel related
 classifier_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0) if os.environ.get("OPENAI_API_KEY") else None
 
 OUT_OF_SCOPE_MESSAGE = (
@@ -56,7 +55,7 @@ class QueryClassification(BaseModel):
 def is_market_intel_query(query: str) -> tuple[bool, dict]:
     """Check if query is market intel related using LLM. Returns (is_valid, classification_metadata)"""
     if classifier_llm is None:
-        return True, {"classification_skipped": True}  # skip check if no API key
+        return True, {"classification_skipped": True}
     
     try:
         prompt = f"""Classify whether this user query is about market intelligence, competitive research, or business analysis.
@@ -87,7 +86,7 @@ Respond with whether this is a market intelligence query and your confidence lev
         return is_valid, metadata
     except Exception as e:
         logger.warning("Classification failed: %s", e)
-        return True, {"classification_skipped": True, "classification_error": str(e)}  # allow through on error
+        return True, {"classification_skipped": True, "classification_error": str(e)}
 
 
 def validate_query_guards(query: str) -> tuple[str | None, dict]:
@@ -132,19 +131,16 @@ def passes_moderation(query: str) -> bool:
 
 def extract_urls_from_content(content: str) -> list[str]:
     """Extract URLs from agent message content"""
-    # Simple regex to find URLs
     url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
     urls = re.findall(url_pattern, content)
-    # Remove trailing punctuation
     urls = [url.rstrip('.,;:!?)') for url in urls]
-    return list(set(urls))  # deduplicate
+    return list(set(urls))
 
 
 def extract_request_metadata(request) -> dict:
     """Extract basic request metadata for logging (IP only, no user identification)"""
     metadata = {}
     
-    # Extract IP address (handles proxies) - for security/analytics only
     if request.headers.get('X-Forwarded-For'):
         metadata['ip_address'] = request.headers.get('X-Forwarded-For').split(',')[0].strip()
     elif request.headers.get('X-Real-IP'):
@@ -157,7 +153,6 @@ def extract_request_metadata(request) -> dict:
 
 class ResearchRequest(BaseModel):
     query: str = Field(..., min_length=5, max_length=MAX_QUERY_CHARS)
-    session_id: str | None = None
 
     @field_validator("query")
     @classmethod
@@ -167,9 +162,18 @@ class ResearchRequest(BaseModel):
             raise ValueError("Query cannot be empty")
         return cleaned
 
-# Initialize Flask as 'application' for AWS EB
 application = Flask(__name__)
-CORS(application)
+default_origins = [
+    "http://localhost:5173",
+    r"https?://.*\.elasticbeanstalk\.com",
+    r"https?://.*\.amazonaws\.com"
+]
+cors_origins_env = os.environ.get("CORS_ORIGINS")
+if cors_origins_env:
+    allowed_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+else:
+    allowed_origins = default_origins
+CORS(application, origins=allowed_origins)
 
 
 @application.route('/')
@@ -187,16 +191,14 @@ def run_research():
         return jsonify({"error": "Invalid request body", "details": exc.errors()}), 400
 
     query = payload.query
-    session_id = payload.session_id or str(uuid.uuid4())
+    session_id = str(uuid.uuid4())
 
     guard_response = enforce_query_guards(query)
     if guard_response:
         return guard_response
 
-    # Extract basic request metadata for logging (IP only)
     request_metadata = extract_request_metadata(request)
 
-    # Get query metadata
     _, query_metadata = validate_query_guards(query)
     
     db_handler.log_query(session_id, query, request_metadata)
@@ -223,13 +225,11 @@ def run_research():
                 if "messages" in value and value["messages"]:
                     msg = value["messages"][-1]
                     final_response = msg.content
-                    # Extract URLs from messages
                     urls = extract_urls_from_content(msg.content)
                     discovered_urls.update(urls)
 
         duration = time.time() - start_time
 
-        # Log final report to MongoDB with metadata
         if final_response:
             metadata = {
                 "query": query,
@@ -255,7 +255,6 @@ def run_research():
         error_message = str(exc)
         logger.warning("Recursion limit (%s) hit for session %s: %s", RECURSION_LIMIT, session_id, exc)
         
-        # Log failed attempt with metadata
         metadata = {
             "query": query,
             "start_time": datetime.datetime.utcfromtimestamp(start_time),
@@ -276,7 +275,6 @@ def run_research():
         error_message = str(e)
         logger.exception("Non-streaming research failed")
         
-        # Log failed attempt with metadata
         metadata = {
             "query": query,
             "start_time": datetime.datetime.utcfromtimestamp(start_time),
@@ -297,13 +295,12 @@ def run_research():
 def run_research_stream():
     """SSE streaming endpoint"""
     query = (request.args.get('query') or "").strip()
-    session_id = request.args.get('session_id', str(uuid.uuid4()))
+    session_id = str(uuid.uuid4())
 
     def sse_format(payload: dict) -> str:
         return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
     def event_stream():
-        # Validate basic query requirements
         if not query:
             yield sse_format({
                 "type": "error",
@@ -320,7 +317,6 @@ def run_research_stream():
             })
             return
 
-        # Validate guardrails and send error through SSE if rejected
         guard_error, query_metadata = validate_query_guards(query)
         if guard_error:
             yield sse_format({
@@ -330,7 +326,6 @@ def run_research_stream():
             })
             return
 
-        # Extract basic request metadata for logging (IP only)
         request_metadata = extract_request_metadata(request)
 
         db_handler.log_query(session_id, query, request_metadata)
@@ -360,26 +355,25 @@ def run_research_stream():
                 for node_name, state in event.items():
                     if node_name in node_counts:
                         node_counts[node_name] += 1
-                    messages = state.get("messages", [])
-                    if not messages:
-                        continue
-
-                    last_message = messages[-1]
-                    # Extract URLs from messages
-                    urls = extract_urls_from_content(last_message.content)
-                    discovered_urls.update(urls)
                     
-                    yield sse_format({
-                        "type": "agent_message",
-                        "session_id": session_id,
-                        "node": node_name,
-                        "message": last_message.content
-                    })
+                    messages = state.get("messages", [])
+                    if messages:
+                        last_message = messages[-1]
+                        urls = extract_urls_from_content(last_message.content)
+                        discovered_urls.update(urls)
+                        
+                        yield sse_format({
+                            "type": "agent_message",
+                            "session_id": session_id,
+                            "node": node_name,
+                            "message": last_message.content
+                        })
+                    elif node_name in node_counts:
+                        logger.debug(f"Node {node_name} executed but no messages in state")
 
             duration = time.time() - start_time
 
             if last_message is not None:
-                # Log final report to MongoDB with metadata
                 metadata = {
                     "query": query,
                     "start_time": datetime.datetime.utcfromtimestamp(start_time),
@@ -405,7 +399,6 @@ def run_research_stream():
             error_message = str(exc)
             logger.warning("Recursion limit (%s) hit for session %s: %s", RECURSION_LIMIT, session_id, exc)
             
-            # Log failed attempt with metadata
             metadata = {
                 "query": query,
                 "start_time": datetime.datetime.utcfromtimestamp(start_time),
@@ -430,7 +423,6 @@ def run_research_stream():
             error_message = str(e)
             logger.exception("Streaming research failed for %s", session_id)
             
-            # Log failed attempt with metadata
             metadata = {
                 "query": query,
                 "start_time": datetime.datetime.utcfromtimestamp(start_time),

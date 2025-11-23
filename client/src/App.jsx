@@ -108,12 +108,10 @@ export default function AIResearchApp() {
     setStreamLogs((prev) => [...prev, { type: 'info', message: `Report exported as ${filename}` }]);
   };
 
-  // Auto-scroll logs
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [streamLogs]);
 
-  // Clean up on unmount
   useEffect(() => {
     return () => {
       if (eventSourceRef.current) {
@@ -125,13 +123,11 @@ export default function AIResearchApp() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-6">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
         <div className="text-center mb-8 px-2">
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2 leading-tight">Market Intelligence Swarm</h1>
           <p className="text-sm sm:text-base text-gray-600">Real-time AI competitive analysis stream</p>
         </div>
 
-        {/* Search Input */}
         <div className="mb-8">
           <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row gap-3">
@@ -167,7 +163,6 @@ export default function AIResearchApp() {
           </div>
         </div>
 
-        {/* Error Message */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start gap-3 text-sm sm:text-base">
             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5 hidden sm:block" />
@@ -181,7 +176,6 @@ export default function AIResearchApp() {
 
         <div className="grid gap-6">
             
-            {/* 1. Live Stream Logs (Visible if there are logs) */}
             {(streamLogs.length > 0 || isStreaming) && (
                 <div className="bg-gray-900 rounded-lg shadow-md p-4 sm:p-6 text-gray-300 font-mono text-xs sm:text-sm border border-gray-700">
                     <div className="flex flex-wrap items-center gap-2 mb-4 border-b border-gray-700 pb-2">
@@ -206,7 +200,6 @@ export default function AIResearchApp() {
                 </div>
             )}
 
-            {/* 2. Final Report Results */}
             {finalReport && (
             <div className="bg-white rounded-lg shadow-md p-5 sm:p-8 border-t-4 border-blue-600 animate-in fade-in zoom-in duration-500">
                 <div className="mb-4 pb-4 border-b border-gray-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -233,7 +226,6 @@ export default function AIResearchApp() {
             </div>
             )}
 
-            {/* Empty State */}
             {!finalReport && streamLogs.length === 0 && !error && !isStreaming && (
             <div className="bg-white rounded-lg shadow-md p-8 sm:p-12 text-center">
                 <Search className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
