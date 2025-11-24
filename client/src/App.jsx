@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Search, Loader2, AlertCircle, StopCircle, Terminal, FileText } from 'lucide-react';
 
 const SERVER_BASE_URL = import.meta.env.VITE_SERVER_URL || 'http://127.0.0.1:5000';
@@ -13,6 +13,16 @@ export default function AIResearchApp() {
 
   const eventSourceRef = useRef(null);
   const logsEndRef = useRef(null);
+
+  const appendLog = useCallback((entry) => {
+    setStreamLogs((prev) => [
+      ...prev,
+      {
+        ...entry,
+        timestamp: entry.timestamp || new Date().toISOString(),
+      },
+    ]);
+  }, []);
 
   const parseMarkdown = (text) => {
     if (!text) return '';
@@ -59,7 +69,7 @@ export default function AIResearchApp() {
             es.close();
             setIsStreaming(false);
           } else if (['agent_message', 'progress', 'status'].includes(data.type)) {
-            setStreamLogs((prev) => [...prev, data]);
+            appendLog(data);
           } else if (data.type === 'final') {
             setFinalReport(data.message);
             es.close();
@@ -88,7 +98,7 @@ export default function AIResearchApp() {
   const handleStopStream = () => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
-      setStreamLogs((prev) => [...prev, { type: 'info', message: 'Stream stopped by user.' }]);
+      appendLog({ type: 'info', message: 'Stream stopped by user.' });
       setIsStreaming(false);
     }
   };
@@ -105,7 +115,7 @@ export default function AIResearchApp() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    setStreamLogs((prev) => [...prev, { type: 'info', message: `Report exported as ${filename}` }]);
+    appendLog({ type: 'info', message: `Report exported as ${filename}` });
   };
 
   useEffect(() => {
@@ -184,9 +194,9 @@ export default function AIResearchApp() {
                         {isStreaming && <Loader2 className="w-3 h-3 animate-spin text-green-400 ml-auto" />}
                     </div>
                     <div className="max-h-64 sm:max-h-60 overflow-y-auto space-y-2 pr-2">
-                        {streamLogs.map((log, idx) => (
-                            <div key={idx} className="flex gap-3 animate-in fade-in slide-in-from-bottom-1 duration-300">
-                                <span className="text-blue-400 shrink-0">[{new Date().toLocaleTimeString()}]</span>
+                         {streamLogs.map((log, idx) => (
+                             <div key={idx} className="flex gap-3 animate-in fade-in slide-in-from-bottom-1 duration-300">
+                                 <span className="text-blue-400 shrink-0">[{new Date(log.timestamp || Date.now()).toLocaleTimeString()}]</span>
                                 <span className={log.type === 'error' ? 'text-red-400' : 'text-gray-300'}>
                                     {log.node ? `[${log.node}] ` : ''}{log.message}
                                 </span>
