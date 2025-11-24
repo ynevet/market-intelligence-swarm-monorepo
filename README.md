@@ -14,7 +14,7 @@ Monorepo containing the LangGraph/Tavily-powered Flask backend (`server/`) and t
 - Docker Desktop 4.24+ (Compose v2)
 - Node.js 20+ (only needed if you still want to run the client without Docker)
 - Python 3.11+ (only needed if you still want to run the server without Docker)
-- Tavily and MongoDB credentials
+- OpenAI, Tavily, and MongoDB credentials
 
 ### Environment Variables
 Create a root `.env` file (ignored by git) with:
