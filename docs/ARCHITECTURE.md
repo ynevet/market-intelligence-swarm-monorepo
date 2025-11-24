@@ -5,7 +5,7 @@ The Market Intelligence Swarm is a two-tier application:
 1. **Backend (`server/`)** – a Flask API that orchestrates LangGraph agents, logs activity to MongoDB Atlas, and streams Server-Sent Events (SSE) to the UI.
 2. **Frontend (`client/`)** – a React/Vite single-page app that triggers research runs, renders the live agent feed, and lets analysts export the final Markdown report.
 
-Docker images exist for both services. `docker-compose.yml` wires them together for local work, while `deploy/Dockerrun.aws.json` feeds the same containers to AWS Elastic Beanstalk’s multi-container platform.
+Docker images exist for both services. `docker-compose.yml` wires them together for local work, while the Dockerfiles can be deployed individually to platforms like AWS Elastic Beanstalk’s single-container Docker environment.
 
 ## Agent Architecture
 

@@ -1,6 +1,6 @@
 ## Market Intelligence Swarm
 
-Monorepo containing the LangGraph/Tavily-powered Flask backend (`server/`) and the Vite/React frontend (`client/`). Both services are containerized and orchestrated with Docker Compose for local development, and the Dockerfiles are production-ready for AWS Elastic Beanstalk multi-container deployments. See `docs/ARCHITECTURE.md` for an end-to-end design walkthrough (agents, LangGraph flow, Mongo schema, and AWS topology).
+Monorepo containing the LangGraph/Tavily-powered Flask backend (`server/`) and the Vite/React frontend (`client/`). Both services are containerized and orchestrated with Docker Compose for local development, and the Dockerfiles are production-ready for single-container deployments (for example, AWS Elastic Beanstalk’s Docker platform). See `docs/ARCHITECTURE.md` for an end-to-end design walkthrough (agents, LangGraph flow, Mongo schema, and AWS topology).
 
 ### Feature Highlights
 
@@ -8,7 +8,7 @@ Monorepo containing the LangGraph/Tavily-powered Flask backend (`server/`) and t
 - Tavily endpoints exercised: `search`, `map`, `crawl`, and `extract`.
 - MongoDB Atlas logging of user prompts, intermediate agent messages, and final reports.
 - React UI with live SSE log, markdown rendering, and an **Export Markdown** button for sharing.
-- AWS EB-ready containers plus `deploy/Dockerrun.aws.json` template for the multi-container platform.
+- AWS-ready container builds plus helper files (for example, `deploy/Dockerrun.aws.json`) that you can adapt for single-container Elastic Beanstalk deployments.
 
 ### Prerequisites
 - Docker Desktop 4.24+ (Compose v2)
@@ -49,13 +49,10 @@ docker build -t mis-client --target production --build-arg VITE_SERVER_URL=https
 ```
 
 ### AWS Elastic Beanstalk Deployment Notes
-1. Use the **Multi-container Docker on Amazon Linux 2** platform so Elastic Beanstalk spins up an ECS cluster that understands multiple containers.
-2. Push both images to Amazon ECR (one repository per service). Tag them `latest` or any semantic version.
-3. Copy `deploy/Dockerrun.aws.json` to the repo root, replace the placeholder ECR URIs + secrets, and include it in the ZIP you deploy with `eb deploy`.
-4. In the EB console, configure health checks and listener rules so that:
-   - Port 80 (ALB listener) points to the `client` container (`4173`).
-   - Optional: add path-based rule `/api/*` → `server:5000` if you expose the API directly. Alternatively, keep the server private and let the client call it via the ECS internal network (`http://server:5000` as configured above).
-5. Store secrets (Tavily, MongoDB, OpenAI) as EB environment variables to avoid checking them into source control. These will override the placeholder values in `Dockerrun`.
+1. Use the standard **Docker on Amazon Linux 2** platform (single container). Build the backend image, push it to Amazon ECR, and reference it from your Elastic Beanstalk environment.
+2. Host the frontend separately (for example, S3/CloudFront) or run it in its own EB environment following the same single-container pattern.
+3. If you leverage the helper files under `deploy/`, update them to point to the single container image you intend to run.
+4. Configure environment variables (`OPENAI_API_KEY`, `TAVILY_API_KEY`, `MONGO_URI`, `VITE_SERVER_URL`, `CORS_ORIGINS`, `GRAPH_RECURSION_LIMIT`) inside the EB console so secrets stay out of source control.
 
 With this setup you can iterate locally with `docker compose` and later promote the same containers to AWS Elastic Beanstalk without code changes.
 
