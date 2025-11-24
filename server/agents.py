@@ -19,6 +19,7 @@ from langgraph.graph import StateGraph, END, START
 from tools import (
     tavily_search_research,
     tavily_map_site,
+    tavily_crawl_summary,
     tavily_extract_content,
 )
 from database import db_handler
@@ -39,8 +40,8 @@ scout_agent = build_agent(
 
 analyst_agent = build_agent(
     llm_fast,
-    [tavily_extract_content],
-    "You are a Data Analyst. Extract raw content from specific URLs provided by the Scout to answer specific questions."
+    [tavily_crawl_summary, tavily_extract_content],
+    "You are a Data Analyst. Use crawl and extract tools to gather detailed content from URLs identified by the Scout. Extract comprehensive information to answer the research questions."
 )
 def scout_node(state: AgentState):
     result = scout_agent.invoke(state)
