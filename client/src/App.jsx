@@ -230,7 +230,7 @@ export default function AIResearchApp() {
             <div className="bg-white rounded-lg shadow-md p-8 sm:p-12 text-center">
                 <Search className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg sm:text-xl font-semibold text-gray-700 mb-2">Ready to analyze competitors</h3>
-                <p className="text-sm sm:text-base text-gray-500">Enter a URL to stream real-time research data</p>
+                <p className="text-sm sm:text-base text-gray-500">Enter a market research question to stream real-time insights</p>
                 
                 <div className="mt-6 text-left max-w-md mx-auto bg-gray-50 rounded-lg p-4">
                     <p className="text-sm font-semibold text-gray-700 mb-2">Example queries:</p>

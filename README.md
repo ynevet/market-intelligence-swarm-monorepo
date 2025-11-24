@@ -2,13 +2,13 @@
 
 Monorepo containing the LangGraph/Tavily-powered Flask backend (`server/`) and the Vite/React frontend (`client/`). Both services are containerized and orchestrated with Docker Compose for local development, and the Dockerfiles are production-ready for AWS Elastic Beanstalk multi-container deployments. See `docs/ARCHITECTURE.md` for an end-to-end design walkthrough (agents, LangGraph flow, Mongo schema, and AWS topology).
 
-### Assignment Checklist
+### Feature Highlights
 
-- ✅ Multi-agent LangGraph with **Scout** (Tavily search/map/crawl) and **Analyst** (Tavily extract) workers, orchestrated by a Supervisor router.
-- ✅ Tavily endpoints exercised: `search`, `map`, `crawl`, and `extract`.
-- ✅ MongoDB Atlas logging of user prompts, intermediate agent messages, and final reports.
-- ✅ React UI with live SSE log, markdown rendering, and **Export Markdown** button to satisfy the “view results + export outputs” requirement.
-- ✅ AWS EB-ready containers plus `deploy/Dockerrun.aws.json` template for the multi-container platform.
+- Multi-agent LangGraph with **Scout** (Tavily search/map/crawl) and **Analyst** (Tavily extract) workers, orchestrated by a Supervisor router.
+- Tavily endpoints exercised: `search`, `map`, `crawl`, and `extract`.
+- MongoDB Atlas logging of user prompts, intermediate agent messages, and final reports.
+- React UI with live SSE log, markdown rendering, and an **Export Markdown** button for sharing.
+- AWS EB-ready containers plus `deploy/Dockerrun.aws.json` template for the multi-container platform.
 
 ### Prerequisites
 - Docker Desktop 4.24+ (Compose v2)
