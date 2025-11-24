@@ -34,14 +34,14 @@ class AgentState(TypedDict):
 
 scout_agent = build_agent(
     llm_fast,
-    [tavily_search_research, tavily_map_site, tavily_crawl_summary],
-    "You are a Recon Scout. Use Tavily search, map, and crawl tools to chart the research surface area."
+    [tavily_search_research, tavily_map_site],
+    "You are a Recon Scout. Use Tavily search and map tools to find relevant URLs and chart the research surface area. Identify specific URLs that the Analyst should investigate."
 )
 
 analyst_agent = build_agent(
     llm_fast,
-    [tavily_extract_content],
-    "You are a Data Analyst. Extract raw content from specific URLs provided by the Scout to answer specific questions."
+    [tavily_crawl_summary, tavily_extract_content],
+    "You are a Data Analyst. Use crawl and extract tools to gather detailed content from URLs identified by the Scout. Extract comprehensive information to answer the research questions."
 )
 def scout_node(state: AgentState):
     result = scout_agent.invoke(state)
@@ -60,9 +60,11 @@ options = ["FINISH"] + members
 
 supervisor_prompt = (
     "You are a Research Supervisor. Manage the following workers: {members}. "
-    "1. Use 'Scout' to find URLs and site structure. "
-    "2. Use 'Analyst' to extract specific details from those URLs. "
-    "3. Return 'FINISH' when you have a comprehensive answer. "
+    "Follow this workflow: "
+    "1. Use 'Scout' to search and find relevant URLs. "
+    "2. Once Scout identifies URLs, use 'Analyst' to extract detailed content from those URLs. "
+    "3. You may alternate between Scout (for more URLs) and Analyst (for extraction) as needed. "
+    "4. Return 'FINISH' only after Analyst has extracted sufficient details to answer the query comprehensively. "
 )
 
 class RouterOutput(TypedDict):
