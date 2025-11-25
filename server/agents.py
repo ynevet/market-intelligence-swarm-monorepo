@@ -3,13 +3,7 @@ from typing import Annotated, List, TypedDict, Literal
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
-from langgraph.prebuilt import create_react_agent as _create_agent
-
-def build_agent(llm, tools, prompt):
-    try:
-        return _create_agent(llm, tools=tools, system_prompt=prompt)
-    except TypeError:
-        return _create_agent(llm, tools, prompt=prompt)
+from langchain.agents import create_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.graph import StateGraph, END, START
 
@@ -29,16 +23,16 @@ class AgentState(TypedDict):
     next: str
     session_id: str
 
-scout_agent = build_agent(
+scout_agent = create_agent(
     llm_fast,
-    [tavily_search_research, tavily_map_site],
-    "You are a Recon Scout. Use Tavily search and map tools to find relevant URLs and chart the research surface area. Identify specific URLs that the Analyst should investigate."
+    tools=[tavily_search_research, tavily_map_site],
+    system_prompt="You are a Recon Scout. Use Tavily search and map tools to find relevant URLs and chart the research surface area. Identify specific URLs that the Analyst should investigate."
 )
 
-analyst_agent = build_agent(
+analyst_agent = create_agent(
     llm_fast,
-    [tavily_crawl_summary, tavily_extract_content],
-    "You are a Data Analyst. Use crawl and extract tools to gather detailed content from URLs identified by the Scout. Extract comprehensive information to answer the research questions."
+    tools=[tavily_crawl_summary, tavily_extract_content],
+    system_prompt="You are a Data Analyst. Use crawl and extract tools to gather detailed content from URLs identified by the Scout. Extract comprehensive information to answer the research questions."
 )
 def scout_node(state: AgentState):
     result = scout_agent.invoke(state)
