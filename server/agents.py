@@ -3,10 +3,7 @@ from typing import Annotated, List, TypedDict, Literal
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
-try:
-    from langchain.agents import create_agent as _create_agent
-except ImportError:
-    from langgraph.prebuilt import create_react_agent as _create_agent
+from langgraph.prebuilt import create_react_agent as _create_agent
 
 def build_agent(llm, tools, prompt):
     try:
@@ -45,13 +42,23 @@ analyst_agent = build_agent(
 )
 def scout_node(state: AgentState):
     result = scout_agent.invoke(state)
-    output = result["messages"][-1]
+    messages = result.get("messages") or []
+    if not messages:
+        fallback = AIMessage(content="Scout completed without returning a message.")
+        db_handler.log_step(state.get("session_id"), "Scout", "Research", fallback.content)
+        return {"messages": [fallback]}
+    output = messages[-1]
     db_handler.log_step(state.get("session_id"), "Scout", "Research", output.content)
     return {"messages": [output]}
 
 def analyst_node(state: AgentState):
     result = analyst_agent.invoke(state)
-    output = result["messages"][-1]
+    messages = result.get("messages") or []
+    if not messages:
+        fallback = AIMessage(content="Analyst completed without returning extracted content.")
+        db_handler.log_step(state.get("session_id"), "Analyst", "Extraction", fallback.content)
+        return {"messages": [fallback]}
+    output = messages[-1]
     db_handler.log_step(state.get("session_id"), "Analyst", "Extraction", output.content)
     return {"messages": [output]}
 
