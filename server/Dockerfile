@@ -18,4 +18,5 @@ ENV PORT=5000
 
 EXPOSE 5000
 
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT} --worker-class gthread --threads 4 --timeout 0 application:application"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT} --worker-class gthread --workers 2 --threads 8 --timeout 0 application:application"]
+
