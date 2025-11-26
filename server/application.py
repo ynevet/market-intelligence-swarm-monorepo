@@ -233,7 +233,7 @@ def run_research():
         if final_response:
             metadata = {
                 "query": query,
-                "start_time": datetime.datetime.utcfromtimestamp(start_time),
+                "start_time": datetime.datetime.fromtimestamp(start_time, tz=datetime.timezone.utc),
                 "duration_seconds": round(duration, 2),
                 "status": status,
                 "node_execution_counts": node_counts,
@@ -257,7 +257,7 @@ def run_research():
         
         metadata = {
             "query": query,
-            "start_time": datetime.datetime.utcfromtimestamp(start_time),
+            "start_time": datetime.datetime.fromtimestamp(start_time, tz=datetime.timezone.utc),
             "duration_seconds": round(duration, 2),
             "status": status,
             "error_message": error_message,
@@ -277,7 +277,7 @@ def run_research():
         
         metadata = {
             "query": query,
-            "start_time": datetime.datetime.utcfromtimestamp(start_time),
+            "start_time": datetime.datetime.fromtimestamp(start_time, tz=datetime.timezone.utc),
             "duration_seconds": round(duration, 2),
             "status": status,
             "error_message": error_message,
@@ -376,7 +376,7 @@ def run_research_stream():
             if last_message is not None:
                 metadata = {
                     "query": query,
-                    "start_time": datetime.datetime.utcfromtimestamp(start_time),
+                    "start_time": datetime.datetime.fromtimestamp(start_time, tz=datetime.timezone.utc),
                     "duration_seconds": round(duration, 2),
                     "status": status,
                     "node_execution_counts": node_counts,
@@ -401,7 +401,7 @@ def run_research_stream():
             
             metadata = {
                 "query": query,
-                "start_time": datetime.datetime.utcfromtimestamp(start_time),
+                "start_time": datetime.datetime.fromtimestamp(start_time, tz=datetime.timezone.utc),
                 "duration_seconds": round(duration, 2),
                 "status": status,
                 "error_message": error_message,
@@ -425,7 +425,7 @@ def run_research_stream():
             
             metadata = {
                 "query": query,
-                "start_time": datetime.datetime.utcfromtimestamp(start_time),
+                "start_time": datetime.datetime.fromtimestamp(start_time, tz=datetime.timezone.utc),
                 "duration_seconds": round(duration, 2),
                 "status": status,
                 "error_message": error_message,
