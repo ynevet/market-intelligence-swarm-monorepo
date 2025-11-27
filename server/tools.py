@@ -16,7 +16,6 @@ def tavily_search_research(query: str, topic: str = "general") -> str:
         topic: 'general' for broad search or 'news' for current events
     """
     try:
-        # Tavily API has 400 char limit
         if len(query) > 400:
             query = query[:400]
         
@@ -31,8 +30,6 @@ def tavily_search_research(query: str, topic: str = "general") -> str:
         )
         answer = response.get("answer", "No direct answer provided.")
         results = response.get("results", [])
-        
-        # Include scores to help filter relevant results (best practice)
         bullets = "\n".join(
             f"- [{item.get('score', 0):.2f}] {item.get('title', 'Untitled')}: {item.get('url')}"
             for item in results[:10]
@@ -118,7 +115,6 @@ def tavily_extract_content(urls: str, use_advanced: bool = False) -> str:
             content = result.get('raw_content') or result.get('content') or "No content extracted"
             extracted_data.append(f"--- Content from {url} ---\n{content[:1500]}...")
         
-        # Report any failed extractions
         failed = response.get('failed_results', [])
         if failed:
             extracted_data.append(f"\n[Warning: Failed to extract from {len(failed)} URL(s)]")
