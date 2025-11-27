@@ -26,7 +26,7 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
 logger = logging.getLogger("market_intel.application")
-MAX_QUERY_CHARS = 400  # Tavily API limit
+MAX_QUERY_CHARS = 400
 RECURSION_LIMIT = int(os.environ.get('GRAPH_RECURSION_LIMIT', '200'))
 RECURSION_MESSAGE = (
     "We're still working through that request. Please try again with a bit more detail."
