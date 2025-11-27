@@ -8,24 +8,36 @@ tavily_client = TavilyClient(api_key=os.environ.get("TAVILY_API_KEY"))
 logger = logging.getLogger("market_intel.tools")
 
 @tool
-def tavily_search_research(query: str) -> str:
-    """Search Tavily for competitive intel"""
+def tavily_search_research(query: str, topic: str = "general") -> str:
+    """Search Tavily for competitive intel.
+    
+    Args:
+        query: Search query (max 400 chars)
+        topic: 'general' for broad search or 'news' for current events
+    """
     try:
-        logger.info("[Tool] Searching for %s", query)
+        # Tavily API has 400 char limit
+        if len(query) > 400:
+            query = query[:400]
+        
+        logger.info("[Tool] Searching for %s (topic=%s)", query, topic)
         response = tavily_client.search(
             query=query,
             search_depth="advanced",
+            topic=topic if topic in ("general", "news") else "general",
             max_results=10,
             include_images=False,
             include_answer=True,
         )
         answer = response.get("answer", "No direct answer provided.")
         results = response.get("results", [])
+        
+        # Include scores to help filter relevant results (best practice)
         bullets = "\n".join(
-            f"- {item.get('title', 'Untitled')}: {item.get('url')}"
+            f"- [{item.get('score', 0):.2f}] {item.get('title', 'Untitled')}: {item.get('url')}"
             for item in results[:10]
         )
-        return f"Search answer:\n{answer}\n\nTop sources:\n{bullets}"
+        return f"Search answer:\n{answer}\n\nTop sources (with relevance scores):\n{bullets}"
     except Exception as e:
         return f"Error searching web: {str(e)}"
 
@@ -61,9 +73,11 @@ def tavily_crawl_summary(url: str) -> str:
         logger.info("[Tool] Crawling %s", url)
         response = tavily_client.crawl(
             url=url,
+            max_depth=2,
+            max_breadth=10,
+            limit=5,
             extract_depth="advanced",
             format="markdown",
-            limit=5,
             include_images=False,
         )
         pages = response.get("results", [])
@@ -71,25 +85,44 @@ def tavily_crawl_summary(url: str) -> str:
             return f"No crawl summary returned for {url}."
         summaries = []
         for page in pages[:5]:
+            content = page.get("raw_content") or page.get("content") or ""
             summaries.append(
-                f"--- {page.get('url', url)} ---\n{page.get('content', '')[:1500]}..."
+                f"--- {page.get('url', url)} ---\n{content[:1500]}..."
             )
         return "\n\n".join(summaries)
     except Exception as e:
         return f"Error crawling site: {str(e)}"
 
 @tool
-def tavily_extract_content(urls: str) -> str:
-    """Extract raw text from URLs (comma-separated)"""
+def tavily_extract_content(urls: str, use_advanced: bool = False) -> str:
+    """Extract raw text from URLs (comma-separated).
+    
+    Args:
+        urls: Comma-separated list of URLs to extract content from
+        use_advanced: Use advanced extraction for complex pages (LinkedIn, dynamic content)
+    """
     try:
-        url_list = [u.strip() for u in urls.split(",")]
-        logger.info("[Tool] Extracting from %d URLs", len(url_list))
-        response = tavily_client.extract(urls=url_list)
+        url_list = [u.strip() for u in urls.split(",") if u.strip()]
+        if not url_list:
+            return "No valid URLs provided."
+        
+        logger.info("[Tool] Extracting from %d URLs (advanced=%s)", len(url_list), use_advanced)
+        response = tavily_client.extract(
+            urls=url_list,
+            extract_depth="advanced" if use_advanced else "basic"
+        )
 
         extracted_data = []
         for result in response.get('results', []):
-            extracted_data.append(f"--- Content from {result['url']} ---\n{result['raw_content'][:1500]}...")
+            url = result.get('url', 'Unknown URL')
+            content = result.get('raw_content') or result.get('content') or "No content extracted"
+            extracted_data.append(f"--- Content from {url} ---\n{content[:1500]}...")
+        
+        # Report any failed extractions
+        failed = response.get('failed_results', [])
+        if failed:
+            extracted_data.append(f"\n[Warning: Failed to extract from {len(failed)} URL(s)]")
             
-        return "\n\n".join(extracted_data)
+        return "\n\n".join(extracted_data) if extracted_data else "No content could be extracted."
     except Exception as e:
         return f"Error extracting content: {str(e)}"
