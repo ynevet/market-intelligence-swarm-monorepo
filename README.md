@@ -23,8 +23,15 @@ OPENAI_API_KEY=sk-...
 TAVILY_API_KEY=sk-...
 MONGO_URI=mongodb+srv://...
 VITE_SERVER_URL=http://server:5000
+
+# Optional: LangSmith tracing
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=lsv2_...
+LANGCHAIN_PROJECT=MIS-APP
 ```
 `VITE_SERVER_URL` is optional locally but required when the frontend runs inside Docker or in the cloud so that it can reach the backend through the Docker network or load balancer.
+
+The LangChain variables enable [LangSmith](https://smith.langchain.com/) tracing for debugging and monitoring agent runs. They are optional but recommended for development.
 
 For non-Docker workflows you can still drop a `.env` inside `server/` and `client/` as described in their READMEs.
 
@@ -52,7 +59,7 @@ docker build -t mis-client --target production --build-arg VITE_SERVER_URL=https
 1. Use the standard **Docker on Amazon Linux 2** platform (single container). Build the backend image, push it to Amazon ECR, and reference it from your Elastic Beanstalk environment.
 2. Host the frontend separately (for example, S3/CloudFront) or run it in its own EB environment following the same single-container pattern.
 3. If you leverage the helper files under `deploy/`, update them to point to the single container image you intend to run.
-4. Configure environment variables (`OPENAI_API_KEY`, `TAVILY_API_KEY`, `MONGO_URI`, `VITE_SERVER_URL`, `CORS_ORIGINS`, `GRAPH_RECURSION_LIMIT`) inside the EB console so secrets stay out of source control.
+4. Configure environment variables (`OPENAI_API_KEY`, `TAVILY_API_KEY`, `MONGO_URI`, `VITE_SERVER_URL`, `CORS_ORIGINS`, `GRAPH_RECURSION_LIMIT`, `LANGCHAIN_TRACING_V2`, `LANGCHAIN_API_KEY`, `LANGCHAIN_PROJECT`) inside the EB console so secrets stay out of source control.
 
 With this setup you can iterate locally with `docker compose` and later promote the same containers to AWS Elastic Beanstalk without code changes.
 
