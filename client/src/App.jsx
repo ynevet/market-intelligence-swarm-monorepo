@@ -131,8 +131,8 @@ export default function AIResearchApp() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-6 flex flex-col">
+      <div className="max-w-4xl mx-auto flex-1">
         <div className="text-center mb-8 px-2">
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2 leading-tight">Market Intelligence Swarm</h1>
           <p className="text-sm sm:text-base text-gray-600">Real-time AI competitive analysis stream</p>
@@ -248,13 +248,25 @@ export default function AIResearchApp() {
                         <li>• Map stripe.com and extract pricing tiers</li>
                         <li>• Analyze hubspot.com product features</li>
                         <li>• Benchmark Cursor AI vs GitHub Copilot for enterprise teams</li>
-                        <li>• Compare Spotify’s pricing and feature bundles against Apple Music</li>
+                        <li>• Compare Spotify's pricing and feature bundles against Apple Music</li>
                     </ul>
                 </div>
             </div>
             )}
         </div>
       </div>
+
+      <footer className="mt-8 py-4 text-center text-sm text-gray-500">
+        Made by{' '}
+        <a
+          href="https://ynevet.github.io/yair-nevet/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+        >
+          Yair Nevet
+        </a>
+      </footer>
     </div>
   );
 }
