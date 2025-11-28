@@ -131,8 +131,8 @@ export default function AIResearchApp() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-6 flex flex-col">
-      <div className="max-w-4xl mx-auto flex-1">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-6">
+      <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8 px-2">
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2 leading-tight">Market Intelligence Swarm</h1>
           <p className="text-sm sm:text-base text-gray-600">Real-time AI competitive analysis stream</p>
@@ -256,7 +256,7 @@ export default function AIResearchApp() {
         </div>
       </div>
 
-      <footer className="mt-8 py-4 text-center text-sm text-gray-500">
+      <footer className="max-w-4xl mx-auto mt-4 text-center text-sm text-gray-500">
         Made by{' '}
         <a
           href="https://ynevet.github.io/yair-nevet/"
