@@ -6,12 +6,20 @@ This directory contains the Flask-based Market Intelligence backend, exposing AP
 - `OPENAI_API_KEY` (required): used by LangGraph agents via `langchain-openai`.
 - `TAVILY_API_KEY` (required): lets the Tavily tools crawl and extract site content.
 - `MONGO_URI` (optional but recommended): enables query, step, and report logging inside MongoDB Atlas. When missing, data persistence is disabled.
+- `LANGCHAIN_TRACING_V2` (optional): set to `true` to enable LangSmith tracing.
+- `LANGCHAIN_API_KEY` (optional): your LangSmith API key for tracing.
+- `LANGCHAIN_PROJECT` (optional): project name in LangSmith (e.g., `MIS-APP`).
 
 You can declare them inside `server/.env`, for example:
 ```
 OPENAI_API_KEY=sk-...
 TAVILY_API_KEY=sk-...
 MONGO_URI=mongodb+srv://...
+
+# Optional: LangSmith tracing
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=lsv2_...
+LANGCHAIN_PROJECT=MIS-APP
 ```
 
 ### Virtual Environment
