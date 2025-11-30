@@ -257,7 +257,7 @@ export default function AIResearchApp() {
       </div>
 
       <footer className="max-w-4xl mx-auto mt-4 text-center text-sm text-gray-500">
-        Made by{' '}
+        Built by{' '}
         <a
           href="https://ynevet.github.io/yair-nevet/"
           target="_blank"
