@@ -11,7 +11,7 @@ FROM base AS development
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
 
 FROM base AS build
-ARG VITE_SERVER_URL=http://server:5000
+ARG VITE_SERVER_URL=http://mis-app-api-dev.us-east-1.elasticbeanstalk.com
 ENV VITE_SERVER_URL=${VITE_SERVER_URL}
 RUN npm run build
 
