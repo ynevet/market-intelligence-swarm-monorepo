@@ -5,7 +5,7 @@ The Market Intelligence Swarm is a two-tier application:
 1. **Backend (`server/`)** – a Flask API that orchestrates LangGraph agents, logs activity to MongoDB Atlas, and streams Server-Sent Events (SSE) to the UI.
 2. **Frontend (`client/`)** – a React/Vite single-page app that triggers research runs, renders the live agent feed, and lets analysts export the final Markdown report.
 
-Docker images exist for both services. `docker-compose.yml` wires them together for local work, while the Dockerfiles can be deployed individually to platforms like AWS Elastic Beanstalk’s single-container Docker environment.
+Docker images exist for both services. `docker-compose.yml` wires them together for local work.
 
 ## Agent Architecture
 
@@ -53,16 +53,6 @@ Environment variables:
 
 - `MONGO_URI` – connection string (SRV or standard)
 - `OPENAI_API_KEY`, `TAVILY_API_KEY` – model/tool credentials
-
-## Deployment Topology
-
-- **Local**: `docker compose up --build` starts Flask on `5000` and Vite dev server on `5173`. The client talks to the backend through `VITE_SERVER_URL`.
-- **AWS Elastic Beanstalk**:
-  - Build images (`docker build -t mis-server ./server`, `docker build -t mis-client --target production ...`).
-  - Push to Amazon ECR.
-  - Update `deploy/Dockerrun.aws.json` with the image URIs and upload via `eb deploy`.
-  - ALB forwards port 80 to the client container (`4173`). The client calls the API over the internal ECS network (`http://server:5000`).
-  - Configure environment variables (`OPENAI_API_KEY`, `TAVILY_API_KEY`, `MONGO_URI`, `VITE_SERVER_URL`) within the EB console.
 
 ## Testing & Observability
 

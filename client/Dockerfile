@@ -8,7 +8,6 @@ RUN npm install
 COPY . .
 
 FROM base AS development
-# Remove EXPOSE for EB. You can still use this stage locally.
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
 
 FROM base AS build
