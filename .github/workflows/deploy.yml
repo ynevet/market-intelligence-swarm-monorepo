@@ -72,7 +72,7 @@ jobs:
         working-directory: ./server
         run: |
           echo "Pulling EB configuration for server..."
-          eb init mis-app-api --region us-east-1 --platform "Docker running on 64bit Amazon Linux 2023" --non-interactive
+          eb init mis-app-api --region us-east-1 --platform "Docker running on 64bit Amazon Linux 2023"
           echo "Deploying server to mis-app-api-dev..."
           eb deploy mis-app-api-dev --timeout 20
           echo "✓ Server deployment completed"
@@ -82,7 +82,7 @@ jobs:
         working-directory: ./client
         run: |
           echo "Pulling EB configuration for client..."
-          eb init mis-app-ui --region us-east-1 --platform "Docker running on 64bit Amazon Linux 2023" --non-interactive
+          eb init mis-app-ui --region us-east-1 --platform "Docker running on 64bit Amazon Linux 2023"
           echo "Deploying client to mis-app-ui-dev..."
           eb deploy mis-app-ui-dev --timeout 20
           echo "✓ Client deployment completed"
