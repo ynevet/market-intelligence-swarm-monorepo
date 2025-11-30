@@ -257,15 +257,20 @@ export default function AIResearchApp() {
       </div>
 
       <footer className="max-w-4xl mx-auto mt-4 text-center text-sm text-gray-500">
-        Built by{' '}
-        <a
-          href="https://ynevet.github.io/yair-nevet/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
-        >
-          Yair Nevet
-        </a>
+        <div className="mb-2">
+          Powered by <span className="font-medium text-gray-700">Multi-Agents AI</span>
+        </div>
+        <div>
+          Built by{' '}
+          <a
+            href="https://ynevet.github.io/yair-nevet/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+          >
+            Yair Nevet
+          </a>
+        </div>
       </footer>
     </div>
   );
