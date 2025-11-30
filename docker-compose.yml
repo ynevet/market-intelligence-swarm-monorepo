@@ -13,6 +13,17 @@ services:
       LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY:-}
       LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-}
     restart: unless-stopped
+    develop:
+      watch:
+        - action: rebuild
+          path: ./server/requirements.txt
+        - action: rebuild
+          path: ./server
+          ignore:
+            - __pycache__/
+            - "*.pyc"
+            - .git/
+            - README.md
 
   client:
     build:
@@ -25,3 +36,15 @@ services:
     depends_on:
       - server
     restart: unless-stopped
+    develop:
+      watch:
+        - action: sync
+          path: ./client/src
+          target: /app/src
+        - action: sync
+          path: ./client/public
+          target: /app/public
+        - action: rebuild
+          path: ./client/package.json
+        - action: rebuild
+          path: ./client/package-lock.json
