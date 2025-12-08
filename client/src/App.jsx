@@ -68,7 +68,7 @@ export default function AIResearchApp() {
             setError(data.message || 'An error occurred during processing');
             es.close();
             setIsStreaming(false);
-          } else if (['agent_message', 'progress', 'status'].includes(data.type)) {
+          } else if (['agent_message', 'progress', 'status', 'keepalive'].includes(data.type)) {
             appendLog(data);
           } else if (data.type === 'final') {
             setFinalReport(data.message);
@@ -82,9 +82,12 @@ export default function AIResearchApp() {
 
       es.onerror = (err) => {
         console.error("Stream error:", err);
-        if (streamLogs.length === 0 && !finalReport) {
+        setStreamLogs((currentLogs) => {
+          if (currentLogs.length === 0) {
             setError('Connection to stream failed. Ensure the backend is running.');
-        }
+          }
+          return currentLogs;
+        });
         es.close();
         setIsStreaming(false);
       };
