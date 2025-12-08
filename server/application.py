@@ -341,6 +341,7 @@ def run_research_stream():
         discovered_urls = set()
         status = "success"
         error_message = None
+        last_keepalive = time.time()
 
         try:
             yield sse_format({
@@ -368,8 +369,18 @@ def run_research_stream():
                             "node": node_name,
                             "message": last_message.content
                         })
+                        last_keepalive = time.time()
                     elif node_name in node_counts:
                         logger.debug(f"Node {node_name} executed but no messages in state")
+                
+                # Send keepalive if no message in last 10 seconds
+                if time.time() - last_keepalive > 10:
+                    yield sse_format({
+                        "type": "keepalive",
+                        "session_id": session_id,
+                        "message": "Processing..."
+                    })
+                    last_keepalive = time.time()
 
             duration = time.time() - start_time
 
