@@ -2,7 +2,7 @@ services:
   server:
     build:
       context: ./server
-    command: ["python", "application.py"]
+    command: ["gunicorn", "--bind", "0.0.0.0:5000", "--worker-class", "gthread", "--workers", "2", "--threads", "8", "--timeout", "0", "application:application"]
     ports:
       - "5000:5000"
     environment:

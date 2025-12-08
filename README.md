@@ -38,7 +38,7 @@ For non-Docker workflows you can still drop a `.env` inside `server/` and `clien
 ```
 docker compose up --build
 ```
-- `server` service runs `python application.py` for hot reloading (Flask dev server on port 5000).
+- `server` service runs Gunicorn with threading support (port 5000) for reliable long-running SSE streaming.
 - `client` service runs `npm run dev -- --host 0.0.0.0 --port 5173`.
 - Access the UI at `http://localhost:5173`. The UI talks to the backend at `http://localhost:5000`.
 - Stop with `Ctrl+C` (or `docker compose down` to clean up containers).
